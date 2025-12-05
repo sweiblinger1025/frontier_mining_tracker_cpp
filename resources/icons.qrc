@@ -1,0 +1,28 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>icons/receipt-2.svg</file>
+        <file>icons/cash.svg</file>
+        <file>icons/wallet.svg</file>
+        <file>icons/calculator.svg</file>
+        <file>icons/trending-up.svg</file>
+        <file>icons/chart-bar.svg</file>
+        <file>icons/tree.svg</file>
+        <file>icons/graph.svg</file>
+        <file>icons/sparkles.svg</file>
+        <file>icons/percent.svg</file>
+        <file>icons/tag.svg</file>
+        <file>icons/discount.svg</file>
+        <file>icons/book.svg</file>
+        <file>icons/book-2.svg</file>
+        <file>icons/timeline.svg</file>
+        <file>icons/message-dots.svg</file>
+        <file>icons/pick.svg</file>
+        <file>icons/shovel.svg</file>
+        <file>icons/ruler-measure.svg</file>
+        <file>icons/layers.svg</file>
+        <file>icons/building.svg</file>
+        <file>icons/truck.svg</file>
+        <file>icons/settings.svg</file>
+        <file>icons/sliders.svg</file>
+    </qresource>
+</RCC>

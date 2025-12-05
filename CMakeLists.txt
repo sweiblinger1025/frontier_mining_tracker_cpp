@@ -1,70 +1,56 @@
 cmake_minimum_required(VERSION 3.16)
+project(frontier_mining_tracker_cpp LANGUAGES CXX)
 
-project(frontier_mining_tracker_cpp VERSION 0.1 LANGUAGES CXX)
-
-set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
+# Find Qt
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
-set(PROJECT_SOURCES
-        main.cpp
-        mainwindow.cpp
-        mainwindow.h
-        mainwindow.ui
+set(SOURCES
+    src/main.cpp
+    src/ui/mainwindow.cpp
+    src/ui/dashboardwidget.cpp
+    src/ui/financewidget.cpp
+    src/ui/operationswidget.cpp
+    src/ui/datahubwidget.cpp
+    src/ui/auditorwidget.cpp
 )
 
-if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
-    qt_add_executable(frontier_mining_tracker_cpp
-        MANUAL_FINALIZATION
-        ${PROJECT_SOURCES}
-    )
-# Define target properties for Android with Qt 6 as:
-#    set_property(TARGET frontier_mining_tracker_cpp APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
-#                 ${CMAKE_CURRENT_SOURCE_DIR}/android)
-# For more information, see https://doc.qt.io/qt-6/qt-add-executable.html#target-creation
-else()
-    if(ANDROID)
-        add_library(frontier_mining_tracker_cpp SHARED
-            ${PROJECT_SOURCES}
-        )
-# Define properties for Android with Qt 5 after find_package() calls as:
-#    set(ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android")
-    else()
-        add_executable(frontier_mining_tracker_cpp
-            ${PROJECT_SOURCES}
-        )
-    endif()
-endif()
+set(HEADERS
+    src/ui/mainwindow.h
+    src/ui/dashboardwidget.h
+    src/ui/financewidget.h
+    src/ui/operationswidget.h
+    src/ui/datahubwidget.h
+    src/ui/auditorwidget.h
+)
 
-target_link_libraries(frontier_mining_tracker_cpp PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+set(UIS
+    ui/mainwindow.ui
+)
+set(RESOURCES
+    resources/icons.qrc
+)
 
-# Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
-# If you are developing for iOS or macOS you should consider setting an
-# explicit, fixed bundle identifier manually though.
-if(${QT_VERSION} VERSION_LESS 6.1.0)
-  set(BUNDLE_ID_OPTION MACOSX_BUNDLE_GUI_IDENTIFIER com.example.frontier_mining_tracker_cpp)
-endif()
+qt_add_executable(frontier_mining_tracker_cpp
+    ${SOURCES}
+    ${HEADERS}
+    ${UIS}
+    ${RESOURCES}
+)
+
 set_target_properties(frontier_mining_tracker_cpp PROPERTIES
-    ${BUNDLE_ID_OPTION}
-    MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
-    MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
-    MACOSX_BUNDLE TRUE
-    WIN32_EXECUTABLE TRUE
+    AUTOUIC_SEARCH_PATHS "${CMAKE_SOURCE_DIR}/ui"
 )
 
-include(GNUInstallDirs)
-install(TARGETS frontier_mining_tracker_cpp
-    BUNDLE DESTINATION .
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+target_include_directories(frontier_mining_tracker_cpp PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/ui
 )
 
-if(QT_VERSION_MAJOR EQUAL 6)
-    qt_finalize_executable(frontier_mining_tracker_cpp)
-endif()
+target_link_libraries(frontier_mining_tracker_cpp PRIVATE Qt6::Widgets)
