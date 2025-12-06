@@ -15,6 +15,7 @@
 #include <QMenuBar>
 #include <QMenu>
 #include <QAction>
+#include <QStatusBar>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -118,6 +119,17 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     connect(exitAction, &QAction::triggered, this, &QMainWindow::close);
+
+    // Status Bar
+    statusBar()->showMessage("Ready");
+
+    // Permanent status bar widgets (right side)
+    m_dayLabel = new QLabel("Day: 1", this);
+    m_balanceLabel = new QLabel("Balance: $10,000", this);
+
+    statusBar()->addPermanentWidget(m_dayLabel);
+    statusBar()->addPermanentWidget(m_balanceLabel);
+
 }
 
 MainWindow::~MainWindow()

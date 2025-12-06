@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QTabWidget>
+#include <QLabel>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -21,5 +22,8 @@ public:
 private:
     Ui::MainWindow *ui;
     QTabWidget *m_tabWidget;
+    QLabel *m_dayLabel;
+    QLabel *m_balanceLabel;
+
 };
 #endif // MAINWINDOW_H
