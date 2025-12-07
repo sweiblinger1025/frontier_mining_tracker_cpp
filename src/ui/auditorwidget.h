@@ -15,6 +15,9 @@
 #include <QTextEdit>
 #include <QStandardItemModel>
 #include <QGroupBox>
+#include <QCheckBox>
+#include <QSettings>
+#include <QSpinBox>
 
 #include "core/database.h"
 
@@ -33,9 +36,13 @@ private slots:
     void onBrowseSaveFile();
     void onParseSaveFile();
     void onRunValidation();
+    void onBrowseDefaultPath();
+    void onSettingsChanged();
 
 private:
     void setupUi();
+    void loadSettings();
+    void saveSettings();
 
     // Subtab creation
     QWidget* createSaveParserTab();
@@ -89,6 +96,13 @@ private:
     };
 
     ParsedSaveData m_parsedData;
+
+    // Settings tab widgets
+    QLineEdit *m_defaultSavePathEdit;
+    QCheckBox *m_autoParseCheckbox;
+    QCheckBox *m_showRawDataCheckbox;
+    QSpinBox *m_maxTransactionsSpin;
+
 };
 
 #endif // AUDITORWIDGET_H

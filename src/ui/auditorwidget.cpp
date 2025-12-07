@@ -29,6 +29,7 @@ AuditorWidget::AuditorWidget(Frontier::Database *database, QWidget *parent)
 {
     m_parsedData.valid = false;  // Add this
     setupUi();
+    loadSettings();
 }
 
 AuditorWidget::~AuditorWidget()
@@ -208,35 +209,162 @@ QWidget* AuditorWidget::createSettingsTab()
     QWidget *settingsTab = new QWidget();
     QVBoxLayout *mainLayout = new QVBoxLayout(settingsTab);
     mainLayout->setContentsMargins(10, 10, 10, 10);
+    mainLayout->setSpacing(15);
 
+    // === Default Paths ===
     QGroupBox *pathsGroup = new QGroupBox("Default Paths");
-    QFormLayout *pathsLayout = new QFormLayout(pathsGroup);
+    QVBoxLayout *pathsLayout = new QVBoxLayout(pathsGroup);
 
-    QLineEdit *defaultSavePathEdit = new QLineEdit();
-    defaultSavePathEdit->setPlaceholderText("Default save file location...");
-    pathsLayout->addRow("Save Files:", defaultSavePathEdit);
+    QLabel *pathLabel = new QLabel("Default Save File Location:");
+    pathsLayout->addWidget(pathLabel);
+
+    QHBoxLayout *pathEditLayout = new QHBoxLayout();
+    m_defaultSavePathEdit = new QLineEdit();
+    m_defaultSavePathEdit->setPlaceholderText("e.g., C:/Users/YourName/AppData/Local/OutOfOre/Saved/SaveGames/");
+
+    QPushButton *browseDefaultBtn = new QPushButton("Browse...");
+    connect(browseDefaultBtn, &QPushButton::clicked,
+            this, &AuditorWidget::onBrowseDefaultPath);
+
+    pathEditLayout->addWidget(m_defaultSavePathEdit, 1);
+    pathEditLayout->addWidget(browseDefaultBtn);
+    pathsLayout->addLayout(pathEditLayout);
+
+    QLabel *pathHint = new QLabel(
+        "<i>Tip: Save files are usually in:<br>"
+        "C:\\Users\\[Name]\\AppData\\Local\\OutOfOre\\Saved\\SaveGames\\[SaveName]\\</i>");
+    pathHint->setStyleSheet("color: gray;");
+    pathsLayout->addWidget(pathHint);
 
     mainLayout->addWidget(pathsGroup);
 
+    // === Parser Options ===
     QGroupBox *optionsGroup = new QGroupBox("Parser Options");
     QFormLayout *optionsLayout = new QFormLayout(optionsGroup);
 
-    QLabel *scaleLabel = new QLabel(QString("Money Scale Factor: %1").arg(MONEY_SCALE));
-    optionsLayout->addRow("", scaleLabel);
+    m_autoParseCheckbox = new QCheckBox("Auto-parse when file is selected");
+    optionsLayout->addRow("", m_autoParseCheckbox);
+
+    m_showRawDataCheckbox = new QCheckBox("Show raw data debug panel");
+    m_showRawDataCheckbox->setChecked(true);
+    optionsLayout->addRow("", m_showRawDataCheckbox);
+
+    m_maxTransactionsSpin = new QSpinBox();
+    m_maxTransactionsSpin->setRange(10, 500);
+    m_maxTransactionsSpin->setValue(50);
+    m_maxTransactionsSpin->setSuffix(" transactions");
+    optionsLayout->addRow("Max transactions to parse:", m_maxTransactionsSpin);
 
     mainLayout->addWidget(optionsGroup);
 
+    // === Info ===
+    QGroupBox *infoGroup = new QGroupBox("Parser Information");
+    QFormLayout *infoLayout = new QFormLayout(infoGroup);
+
+    infoLayout->addRow("File Format:", new QLabel("GVAS (Unreal Engine 4)"));
+    infoLayout->addRow("Money Scale:", new QLabel("1:1 (no scaling)"));
+    infoLayout->addRow("Supported Maps:", new QLabel("All Out of Ore maps"));
+
+    mainLayout->addWidget(infoGroup);
+
+    // === Buttons ===
+    QHBoxLayout *buttonLayout = new QHBoxLayout();
+
+    QPushButton *resetBtn = new QPushButton("Reset to Defaults");
+    connect(resetBtn, &QPushButton::clicked, this, [this]() {
+        m_defaultSavePathEdit->clear();
+        m_autoParseCheckbox->setChecked(false);
+        m_showRawDataCheckbox->setChecked(true);
+        m_maxTransactionsSpin->setValue(50);
+        saveSettings();
+    });
+
+    QPushButton *saveBtn = new QPushButton("Save Settings");
+    connect(saveBtn, &QPushButton::clicked, this, &AuditorWidget::saveSettings);
+
+    buttonLayout->addStretch();
+    buttonLayout->addWidget(resetBtn);
+    buttonLayout->addWidget(saveBtn);
+
+    mainLayout->addLayout(buttonLayout);
+
     mainLayout->addStretch();
+
+    // Connect settings changes
+    connect(m_defaultSavePathEdit, &QLineEdit::textChanged,
+            this, &AuditorWidget::onSettingsChanged);
+    connect(m_autoParseCheckbox, &QCheckBox::toggled,
+            this, &AuditorWidget::onSettingsChanged);
+    connect(m_showRawDataCheckbox, &QCheckBox::toggled,
+            this, &AuditorWidget::onSettingsChanged);
+    connect(m_maxTransactionsSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &AuditorWidget::onSettingsChanged);
 
     return settingsTab;
 }
 
+void AuditorWidget::onBrowseDefaultPath()
+{
+    QString dir = QFileDialog::getExistingDirectory(
+        this,
+        "Select Default Save Folder",
+        m_defaultSavePathEdit->text(),
+        QFileDialog::ShowDirsOnly
+        );
+
+    if (!dir.isEmpty()) {
+        m_defaultSavePathEdit->setText(dir);
+        saveSettings();
+    }
+}
+
+void AuditorWidget::onSettingsChanged()
+{
+    // Update raw data panel visibility
+    if (m_rawDataView) {
+        m_rawDataView->parentWidget()->setVisible(m_showRawDataCheckbox->isChecked());
+    }
+}
+
+void AuditorWidget::loadSettings()
+{
+    QSettings settings("FrontierMining", "Tracker");
+
+    settings.beginGroup("Auditor");
+    m_defaultSavePathEdit->setText(settings.value("defaultSavePath", "").toString());
+    m_autoParseCheckbox->setChecked(settings.value("autoParse", false).toBool());
+    m_showRawDataCheckbox->setChecked(settings.value("showRawData", true).toBool());
+    m_maxTransactionsSpin->setValue(settings.value("maxTransactions", 50).toInt());
+    settings.endGroup();
+
+    // Apply settings
+    onSettingsChanged();
+}
+
+void AuditorWidget::saveSettings()
+{
+    QSettings settings("FrontierMining", "Tracker");
+
+    settings.beginGroup("Auditor");
+    settings.setValue("defaultSavePath", m_defaultSavePathEdit->text());
+    settings.setValue("autoParse", m_autoParseCheckbox->isChecked());
+    settings.setValue("showRawData", m_showRawDataCheckbox->isChecked());
+    settings.setValue("maxTransactions", m_maxTransactionsSpin->value());
+    settings.endGroup();
+}
+
 void AuditorWidget::onBrowseSaveFile()
 {
+    // Use default path if set
+    QString startPath = m_defaultSavePathEdit->text();
+    if (startPath.isEmpty()) {
+        startPath = QString();
+    }
+
     QString fileName = QFileDialog::getOpenFileName(
         this,
         "Select Save File",
-        QString(),
+        startPath,
         "Save Files (*.sav);;All Files (*.*)"
         );
 
@@ -249,6 +377,11 @@ void AuditorWidget::onBrowseSaveFile()
         QFileInfo fileInfo(fileName);
         m_fileNameLabel->setText(fileInfo.fileName());
         m_fileSizeLabel->setText(QString("%L1 bytes").arg(fileInfo.size()));
+
+        // Auto-parse if enabled
+        if (m_autoParseCheckbox->isChecked()) {
+            onParseSaveFile();
+        }
     }
 }
 
@@ -415,7 +548,7 @@ void AuditorWidget::onParseSaveFile()
 
         transactionCount++;
 
-        if (transactionCount >= 50) break;  // Safety limit
+        if (transactionCount >= m_maxTransactionsSpin->value()) break;  // Use setting
     }
 
     m_transactionCountLabel->setText(QString("%1").arg(transactionCount));
