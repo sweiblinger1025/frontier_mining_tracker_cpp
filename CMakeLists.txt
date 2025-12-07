@@ -10,6 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Find Qt
 find_package(Qt6 REQUIRED COMPONENTS Widgets Sql)
+find_package(Qt6 REQUIRED COMPONENTS Core)
 
 set(SOURCES
     src/main.cpp
@@ -20,6 +21,8 @@ set(SOURCES
     src/ui/datahubwidget.cpp
     src/ui/auditorwidget.cpp
     src/core/database.cpp
+    src/ui/additemdialog.cpp
+    src/ui/addtransactiondialog.cpp
 
 )
 
@@ -32,6 +35,8 @@ set(HEADERS
     src/ui/auditorwidget.h
     src/core/types.h
     src/core/database.h
+    src/ui/additemdialog.h
+    src/ui/addtransactiondialog.h
 )
 
 set(UIS
@@ -46,6 +51,8 @@ qt_add_executable(frontier_mining_tracker_cpp
     ${HEADERS}
     ${UIS}
     ${RESOURCES}
+
+
 
 
 )
@@ -63,3 +70,4 @@ target_link_libraries(frontier_mining_tracker_cpp PRIVATE
     Qt6::Widgets
     Qt6::Sql
 )
+target_link_libraries(frontier_mining_tracker_cpp PRIVATE Qt6::Core)

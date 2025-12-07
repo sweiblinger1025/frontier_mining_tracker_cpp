@@ -20,7 +20,8 @@
    <string>Frontier Mining Tracker</string>
   </property>
   <property name="windowIcon">
-   <iconset theme="QIcon::ThemeIcon::DocumentNew"/>
+   <iconset>
+    <normaloff>../../frontier_mining_tracker_py/resources/icons/app_icon.ico</normaloff>../../frontier_mining_tracker_py/resources/icons/app_icon.ico</iconset>
   </property>
   <widget class="QWidget" name="centralwidget"/>
   <widget class="QMenuBar" name="menubar">

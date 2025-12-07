@@ -71,8 +71,6 @@ enum class StockStatus {
  */
 enum class PricingGroup {
     Base70,         // Standard 70% sell rate (most items)
-    Resource72,     // Ores/Resources ~72-73%
-    Special50,      // Water (50%)
     Custom          // Manually specified (doesn't fit pattern)
 };
 
@@ -99,15 +97,22 @@ inline double calculateSellPrice(double buyPrice, PricingGroup group) {
     switch (group) {
     case PricingGroup::Base70:
         return buyPrice * 0.70;
-    case PricingGroup::Resource72:
-        return buyPrice * 0.72;
-    case PricingGroup::Special50:
-        return buyPrice * 0.50;
+    //case PricingGroup::Resource72:
+    //  return buyPrice * 0.72;
+    //case PricingGroup::Special75:
+    //  return buyPrice * 0.75;
     case PricingGroup::Custom:
     default:
         return buyPrice * 0.70;  // Fallback to 70%
     }
 }
+
+// inline int toDisplayPriceForGroup(double internalPrice, PricingGroup group){
+//     if (group == PricingGroup::Special75){
+//         return static_cast<int>(std::floor(internalPrice));
+//     }
+//     return static_cast<int>(std::round(internalPrice));
+// }
 
 // === STRUCTS ===
 

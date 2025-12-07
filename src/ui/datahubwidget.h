@@ -7,6 +7,7 @@
 #define DATAHUBWIDGET_H
 
 #include <QWidget>
+#include <QTabWidget>
 #include <QTableView>
 #include <QComboBox>
 #include <QLineEdit>
@@ -20,6 +21,7 @@
 class DataHubWidget : public QWidget
 {
     Q_OBJECT
+
 public:
     explicit DataHubWidget(Frontier::Database *database, QWidget *parent = nullptr);
     ~DataHubWidget();
@@ -27,6 +29,8 @@ public:
     void refreshData();
 
 private slots:
+
+    // Items tab slots
     void onCategoryFilterChanged(int index);
     void onSearchTextChanged(const QString &text);
     void onAddItemClicked();
@@ -35,6 +39,9 @@ private slots:
 
 private:
     void setupUi();
+
+    // Items tab setup
+    QWidget* createItemsTab();
     void loadCategories();
     void loadItems();
     void applyFilters();
@@ -42,7 +49,10 @@ private:
     // Database reference
     Frontier::Database *m_database;
 
-    // UI Components
+    // Subtabs
+    QTabWidget *m_subTabs;
+
+    // Items tab UI Components
     QComboBox *m_categoryFilter;
     QLineEdit *m_searchBox;
     QTableView *m_tableView;
@@ -50,11 +60,11 @@ private:
     QPushButton *m_addButton;
     QPushButton *m_deleteButton;
 
-    // Data Model
+    // Items Data Model
     QStandardItemModel *m_model;
     QSortFilterProxyModel *m_proxyModel;
 
-    // Data cache
+    // Items Data cache
     QVector<Frontier::Item> m_items;
 };
 

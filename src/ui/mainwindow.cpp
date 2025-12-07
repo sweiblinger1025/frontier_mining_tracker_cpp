@@ -35,7 +35,7 @@ MainWindow::MainWindow(Frontier::Database *database, QWidget *parent)
 
     // Create tab widgets - pass database to DataHub
     DashboardWidget *dashboardWidget = new DashboardWidget(this);
-    FinanceWidget *financeWidget = new FinanceWidget(this);
+    FinanceWidget *financeWidget = new FinanceWidget(m_database, this);
     OperationsWidget *operationsWidget = new OperationsWidget(this);
     DataHubWidget *dataHubWidget = new DataHubWidget(m_database, this);
     AuditorWidget *auditorWidget = new AuditorWidget(this);

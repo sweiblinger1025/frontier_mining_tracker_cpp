@@ -160,8 +160,8 @@ QString Database::pricingGroupToString(PricingGroup group) const
 {
     switch (group) {
     case PricingGroup::Base70: return "Base70";
-    case PricingGroup::Resource72: return "Resource72";
-    case PricingGroup::Special50: return "Special50";
+    // case PricingGroup::Resource72: return "Resource72";
+    // case PricingGroup::Special75: return "Special75";
     case PricingGroup::Custom: return "Custom";
     default: return "Base70";
     }
@@ -169,8 +169,8 @@ QString Database::pricingGroupToString(PricingGroup group) const
 
 PricingGroup Database::stringToPricingGroup(const QString &str) const
 {
-    if (str == "Resource72") return PricingGroup::Resource72;
-    if (str == "Special50") return PricingGroup::Special50;
+    // if (str == "Resource72") return PricingGroup::Resource72;
+    // if (str == "Special75") return PricingGroup::Special75;
     if (str == "Custom") return PricingGroup::Custom;
     return PricingGroup::Base70;
 }
@@ -444,7 +444,7 @@ bool Database::addTransaction(const Transaction &transaction)
     return true;
 }
 
-std::optional<Transaction> Database::getTransaction(int id)
+std::optional<Frontier::Transaction> Frontier::Database::getTransaction(int id)
 {
     if (!m_connected) {
         m_lastError = "Not connected to database";
@@ -458,30 +458,30 @@ std::optional<Transaction> Database::getTransaction(int id)
     query.addBindValue(id);
 
     if (!query.exec() || !query.next()) {
-        m_lastError = query.lastError().text();
         return std::nullopt;
     }
 
-    Transaction t;
-    t.id = query.value("id").toInt();
-    t.date = QDate::fromString(query.value("date").toString(), "yyyy-MM-dd");
+    Transaction trans;
+    trans.id = query.value("id").toInt();
+    trans.date = QDate::fromString(query.value("date").toString(), "yyyy-MM-dd");
 
+    // Convert strings to enums
     QString typeStr = query.value("type").toString();
-    if (typeStr == "Sale") t.type = TransactionType::Sale;
-    else if (typeStr == "Purchase") t.type = TransactionType::Purchase;
-    else if (typeStr == "Transfer") t.type = TransactionType::Transfer;
-    else t.type = TransactionType::Fuel;
+    if (typeStr == "Sale") trans.type = TransactionType::Sale;
+    else if (typeStr == "Purchase") trans.type = TransactionType::Purchase;
+    else if (typeStr == "Transfer") trans.type = TransactionType::Transfer;
+    else trans.type = TransactionType::Fuel;
 
-    t.account = (query.value("account").toString() == "Personal")
-                    ? AccountType::Personal : AccountType::Company;
+    QString accountStr = query.value("account").toString();
+    trans.account = (accountStr == "Company") ? AccountType::Company : AccountType::Personal;
 
-    t.item = query.value("item").toString();
-    t.category = query.value("category").toString();
-    t.quantity = query.value("quantity").toInt();
-    t.unitPrice = query.value("unit_price").toDouble();
-    t.totalAmount = query.value("total_amount").toDouble();
+    trans.item = query.value("item").toString();
+    trans.category = query.value("category").toString();
+    trans.quantity = query.value("quantity").toInt();
+    trans.unitPrice = query.value("unit_price").toDouble();
+    trans.totalAmount = query.value("total_amount").toDouble();
 
-    return t;
+    return trans;
 }
 
 QVector<Transaction> Database::getAllTransactions()

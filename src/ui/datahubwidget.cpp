@@ -4,6 +4,7 @@
  */
 
 #include "datahubwidget.h"
+#include "additemdialog.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -27,8 +28,26 @@ DataHubWidget::~DataHubWidget()
 
 void DataHubWidget::setupUi()
 {
-    // Main layout
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    mainLayout->setContentsMargins(5, 5, 5, 5);
+
+    // Create subtabs
+    m_subTabs = new QTabWidget();
+
+    // Add tabs
+    m_subTabs->addTab(createItemsTab(), "Items");
+    m_subTabs->addTab(new QLabel("Vehicle Specs - Coming Soon"), "Vehicle Specs");
+    m_subTabs->addTab(new QLabel("Factory Buildings - Coming Soon"), "Factory - Buildings");
+    m_subTabs->addTab(new QLabel("Recipes - Coming Soon"), "Recipes");
+    m_subTabs->addTab(new QLabel("Locations - Coming Soon"), "Locations");
+
+    mainLayout->addWidget(m_subTabs);
+}
+
+QWidget* DataHubWidget::createItemsTab()
+{
+    QWidget *itemsTab = new QWidget();
+    QVBoxLayout *mainLayout = new QVBoxLayout(itemsTab);
     mainLayout->setContentsMargins(10, 10, 10, 10);
     mainLayout->setSpacing(10);
 
@@ -50,7 +69,7 @@ void DataHubWidget::setupUi()
     filterLayout->addWidget(m_categoryFilter);
     filterLayout->addSpacing(20);
     filterLayout->addWidget(searchLabel);
-    filterLayout->addWidget(m_searchBox, 1);  // Stretch factor 1
+    filterLayout->addWidget(m_searchBox, 1);
 
     mainLayout->addLayout(filterLayout);
 
@@ -67,18 +86,19 @@ void DataHubWidget::setupUi()
     // Create model
     m_model = new QStandardItemModel(this);
     m_model->setHorizontalHeaderLabels({
-        "Name", "Category", "Buy Price", "Sell Price", "Margin", "ROI %"
+        "Name", "Category", "Buy Price", "Sell Price", "Margin", "ROI %",
+        "Can Buy", "Can Sell", "Craftable"
     });
 
     // Create proxy model for filtering/sorting
     m_proxyModel = new QSortFilterProxyModel(this);
     m_proxyModel->setSourceModel(m_model);
     m_proxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
-    m_proxyModel->setFilterKeyColumn(-1);  // Search all columns
+    m_proxyModel->setFilterKeyColumn(-1);
 
     m_tableView->setModel(m_proxyModel);
 
-    mainLayout->addWidget(m_tableView, 1);  // Stretch factor 1
+    mainLayout->addWidget(m_tableView, 1);
 
     // === Bottom Bar ===
     QHBoxLayout *bottomLayout = new QHBoxLayout();
@@ -110,6 +130,8 @@ void DataHubWidget::setupUi()
 
     connect(m_tableView, &QTableView::doubleClicked,
             this, &DataHubWidget::onItemDoubleClicked);
+
+    return itemsTab;
 }
 
 void DataHubWidget::loadCategories()
@@ -152,24 +174,23 @@ void DataHubWidget::loadItems()
         // Category (display format)
         row.append(new QStandardItem(item.displayCategory()));
 
-        // Buy Price
+        // Buy Price (formatted)
         QStandardItem *buyItem = new QStandardItem();
-        buyItem->setData(item.buyPriceDisplay, Qt::DisplayRole);
+        buyItem->setData(QString("$%L1").arg(item.buyPriceDisplay), Qt::DisplayRole);
         buyItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
         row.append(buyItem);
 
-        // Sell Price
+        // Sell Price (formatted)
         QStandardItem *sellItem = new QStandardItem();
-        sellItem->setData(item.sellPriceDisplay, Qt::DisplayRole);
+        sellItem->setData(QString("$%L1").arg(item.sellPriceDisplay), Qt::DisplayRole);
         sellItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
         row.append(sellItem);
 
         // Margin (calculated)
         double margin = item.sellPriceInternal - item.buyPriceInternal;
         QStandardItem *marginItem = new QStandardItem();
-        marginItem->setData(margin, Qt::DisplayRole);
+        marginItem->setData(QString("$%L1").arg(static_cast<int>(margin)), Qt::DisplayRole);
         marginItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        // Color code: red for negative, green for positive
         if (margin < 0) {
             marginItem->setForeground(QBrush(Qt::red));
         } else if (margin > 0) {
@@ -177,7 +198,7 @@ void DataHubWidget::loadItems()
         }
         row.append(marginItem);
 
-        // ROI % (calculated)
+        // ROI %
         double roi = item.roiPercent();
         QStandardItem *roiItem = new QStandardItem();
         roiItem->setData(QString("%1%").arg(roi, 0, 'f', 2), Qt::DisplayRole);
@@ -188,6 +209,33 @@ void DataHubWidget::loadItems()
             roiItem->setForeground(QBrush(Qt::darkGreen));
         }
         row.append(roiItem);
+
+        // Can Buy
+        QStandardItem *canBuyItem = new QStandardItem();
+        canBuyItem->setData(item.isPurchasable ? "✓" : "✗", Qt::DisplayRole);
+        canBuyItem->setTextAlignment(Qt::AlignCenter);
+        if (!item.isPurchasable) {
+            canBuyItem->setForeground(QBrush(Qt::gray));
+        }
+        row.append(canBuyItem);
+
+        // Can Sell
+        QStandardItem *canSellItem = new QStandardItem();
+        canSellItem->setData(item.isSellable ? "✓" : "✗", Qt::DisplayRole);
+        canSellItem->setTextAlignment(Qt::AlignCenter);
+        if (!item.isSellable) {
+            canSellItem->setForeground(QBrush(Qt::gray));
+        }
+        row.append(canSellItem);
+
+        // Craftable
+        QStandardItem *craftableItem = new QStandardItem();
+        craftableItem->setData(item.isCraftable ? "✓" : "✗", Qt::DisplayRole);
+        craftableItem->setTextAlignment(Qt::AlignCenter);
+        if (!item.isCraftable) {
+            craftableItem->setForeground(QBrush(Qt::gray));
+        }
+        row.append(craftableItem);
 
         // Store item ID in first column for reference
         row[0]->setData(item.id.value_or(-1), Qt::UserRole);
@@ -254,18 +302,18 @@ void DataHubWidget::onCategoryFilterChanged(int index)
             row.append(new QStandardItem(item.displayCategory()));
 
             QStandardItem *buyItem = new QStandardItem();
-            buyItem->setData(item.buyPriceDisplay, Qt::DisplayRole);
+            buyItem->setData(QString("$%L1").arg(item.buyPriceDisplay), Qt::DisplayRole);
             buyItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
             row.append(buyItem);
 
             QStandardItem *sellItem = new QStandardItem();
-            sellItem->setData(item.sellPriceDisplay, Qt::DisplayRole);
+            sellItem->setData(QString("$%L1").arg(item.sellPriceDisplay), Qt::DisplayRole);
             sellItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
             row.append(sellItem);
 
             double margin = item.sellPriceInternal - item.buyPriceInternal;
             QStandardItem *marginItem = new QStandardItem();
-            marginItem->setData(margin, Qt::DisplayRole);
+            marginItem->setData(QString("$%L1").arg(static_cast<int>(margin)), Qt::DisplayRole);
             marginItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
             if (margin < 0) {
                 marginItem->setForeground(QBrush(Qt::red));
@@ -280,6 +328,30 @@ void DataHubWidget::onCategoryFilterChanged(int index)
                 roiItem->setForeground(QBrush(Qt::red));
             }
             row.append(roiItem);
+
+            QStandardItem *canBuyItem = new QStandardItem();
+            canBuyItem->setData(item.isPurchasable ? "✓" : "✗", Qt::DisplayRole);
+            canBuyItem->setTextAlignment(Qt::AlignCenter);
+            if (!item.isPurchasable) {
+                canBuyItem->setForeground(QBrush(Qt::gray));
+            }
+            row.append(canBuyItem);
+
+            QStandardItem *canSellItem = new QStandardItem();
+            canSellItem->setData(item.isSellable ? "✓" : "✗", Qt::DisplayRole);
+            canSellItem->setTextAlignment(Qt::AlignCenter);
+            if (!item.isSellable) {
+                canSellItem->setForeground(QBrush(Qt::gray));
+            }
+            row.append(canSellItem);
+
+            QStandardItem *craftableItem = new QStandardItem();
+            craftableItem->setData(item.isCraftable ? "✓" : "✗", Qt::DisplayRole);
+            craftableItem->setTextAlignment(Qt::AlignCenter);
+            if (!item.isCraftable) {
+                craftableItem->setForeground(QBrush(Qt::gray));
+            }
+            row.append(craftableItem);
 
             row[0]->setData(item.id.value_or(-1), Qt::UserRole);
 
@@ -303,8 +375,33 @@ void DataHubWidget::onSearchTextChanged(const QString &text)
 
 void DataHubWidget::onAddItemClicked()
 {
-    // TODO: Open Add Item dialog
-    QMessageBox::information(this, "Add Item", "Add Item dialog coming soon!");
+    AddItemDialog dialog(this);
+
+    // Get unique categories for dropdowns
+    QSet<QString> mainCats, subCats;
+    for (const auto &item : m_items) {
+        mainCats.insert(item.categoryMain);
+        subCats.insert(item.categorySub);
+    }
+
+    QStringList mainList = mainCats.values();
+    QStringList subList = subCats.values();
+    mainList.sort();
+    subList.sort();
+
+    dialog.setCategories(mainList, subList);
+
+    if (dialog.exec() == QDialog::Accepted) {
+        Frontier::Item newItem = dialog.getItem();
+
+        if (m_database->addItem(newItem)) {
+            loadItems();  // Refresh table
+            QMessageBox::information(this, "Success", "Item added successfully!");
+        } else {
+            QMessageBox::critical(this, "Error",
+                                  QString("Failed to add item: %1").arg(m_database->lastError()));
+        }
+    }
 }
 
 void DataHubWidget::onDeleteItemClicked()
@@ -337,7 +434,43 @@ void DataHubWidget::onDeleteItemClicked()
 
 void DataHubWidget::onItemDoubleClicked(const QModelIndex &index)
 {
-    Q_UNUSED(index);
-    // TODO: Open Edit Item dialog
-    QMessageBox::information(this, "Edit Item", "Edit Item dialog coming soon!");
+    // Get the source index
+    QModelIndex sourceIndex = m_proxyModel->mapToSource(index);
+    int itemId = m_model->item(sourceIndex.row(), 0)->data(Qt::UserRole).toInt();
+
+    // Find the item
+    auto itemOpt = m_database->getItem(itemId);
+    if (!itemOpt.has_value()) {
+        QMessageBox::warning(this, "Error", "Could not load item.");
+        return;
+    }
+
+    AddItemDialog dialog(this);
+
+    // Get unique categories for dropdowns
+    QSet<QString> mainCats, subCats;
+    for (const auto &item : m_items) {
+        mainCats.insert(item.categoryMain);
+        subCats.insert(item.categorySub);
+    }
+
+    QStringList mainList = mainCats.values();
+    QStringList subList = subCats.values();
+    mainList.sort();
+    subList.sort();
+
+    dialog.setCategories(mainList, subList);
+    dialog.setItem(itemOpt.value());
+
+    if (dialog.exec() == QDialog::Accepted) {
+        Frontier::Item updatedItem = dialog.getItem();
+
+        if (m_database->updateItem(updatedItem)) {
+            loadItems();  // Refresh table
+            QMessageBox::information(this, "Success", "Item updated successfully!");
+        } else {
+            QMessageBox::critical(this, "Error",
+                                  QString("Failed to update item: %1").arg(m_database->lastError()));
+        }
+    }
 }
