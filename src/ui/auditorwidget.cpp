@@ -27,6 +27,7 @@ AuditorWidget::AuditorWidget(Frontier::Database *database, QWidget *parent)
     , m_validationModel(nullptr)
 
 {
+    m_parsedData.valid = false;  // Add this
     setupUi();
 }
 
@@ -148,21 +149,23 @@ QWidget* AuditorWidget::createValidationTab()
     mainLayout->setSpacing(10);
 
     // === Validation Controls ===
-    QHBoxLayout *controlLayout = new QHBoxLayout();
+    QGroupBox *controlGroup = new QGroupBox("Validation");
+    QHBoxLayout *controlLayout = new QHBoxLayout(controlGroup);
 
     QPushButton *validateButton = new QPushButton("Run Validation");
     connect(validateButton, &QPushButton::clicked,
             this, &AuditorWidget::onRunValidation);
 
-    m_validationSummaryLabel = new QLabel("Load a save file and run validation to compare with ledger.");
+    m_validationSummaryLabel = new QLabel("Load a save file first, then run validation to compare with ledger.");
+    m_validationSummaryLabel->setWordWrap(true);
 
     controlLayout->addWidget(validateButton);
     controlLayout->addWidget(m_validationSummaryLabel, 1);
 
-    mainLayout->addLayout(controlLayout);
+    mainLayout->addWidget(controlGroup);
 
-    // === Validation Results ===
-    QGroupBox *resultsGroup = new QGroupBox("Validation Results");
+    // === Discrepancies Table ===
+    QGroupBox *resultsGroup = new QGroupBox("Discrepancies Found");
     QVBoxLayout *resultsLayout = new QVBoxLayout(resultsGroup);
 
     m_validationTable = new QTableView();
@@ -173,13 +176,29 @@ QWidget* AuditorWidget::createValidationTab()
 
     m_validationModel = new QStandardItemModel(this);
     m_validationModel->setHorizontalHeaderLabels({
-        "Status", "Item", "Save Amount", "Ledger Amount", "Difference"
+        "Field", "Ledger Value", "Save Value", "Difference"
     });
     m_validationTable->setModel(m_validationModel);
 
     resultsLayout->addWidget(m_validationTable);
 
     mainLayout->addWidget(resultsGroup, 1);
+
+    // === Legend ===
+    QGroupBox *legendGroup = new QGroupBox("Legend");
+    QHBoxLayout *legendLayout = new QHBoxLayout(legendGroup);
+
+    QLabel *matchLabel = new QLabel("● Match");
+    matchLabel->setStyleSheet("color: green;");
+
+    QLabel *diffLabel = new QLabel("● Discrepancy");
+    diffLabel->setStyleSheet("color: red;");
+
+    legendLayout->addWidget(matchLabel);
+    legendLayout->addWidget(diffLabel);
+    legendLayout->addStretch();
+
+    mainLayout->addWidget(legendGroup);
 
     return validationTab;
 }
@@ -401,6 +420,21 @@ void AuditorWidget::onParseSaveFile()
 
     m_transactionCountLabel->setText(QString("%1").arg(transactionCount));
 
+    // Store parsed data for validation
+    m_parsedData.valid = true;
+    m_parsedData.transactionCount = transactionCount;
+    m_parsedData.totalSales = totalSales;
+    m_parsedData.totalPurchases = totalPurchases;
+
+    // Get money value
+    if (moneyPos != -1) {
+        qint32 money;
+        memcpy(&money, data.constData() + moneyPos + 34, sizeof(qint32));
+        m_parsedData.money = money;
+    }
+
+    m_parsedData.map = m_mapNameLabel->text();
+
     // Resize columns
     m_transactionsTable->resizeColumnsToContents();
 
@@ -412,7 +446,8 @@ void AuditorWidget::onParseSaveFile()
 
 void AuditorWidget::onRunValidation()
 {
-    if (m_currentSaveFilePath.isEmpty()) {
+    // Check if save file has been parsed
+    if (!m_parsedData.valid) {
         QMessageBox::warning(this, "Validation",
                              "Please load and parse a save file first.");
         return;
@@ -420,15 +455,100 @@ void AuditorWidget::onRunValidation()
 
     m_validationModel->removeRows(0, m_validationModel->rowCount());
 
-    // Get ledger transactions
+    // Get ledger data from database
     auto ledgerTransactions = m_database->getAllTransactions();
 
-    // For now, show a placeholder
-    m_validationSummaryLabel->setText(
-        QString("Ledger has %1 transactions. Full validation coming soon.")
-            .arg(ledgerTransactions.size()));
+    double ledgerSales = 0;
+    double ledgerPurchases = 0;
 
-    QMessageBox::information(this, "Validation",
-                             "Full validation feature coming soon!\n\n"
-                             "This will compare save file transactions with your ledger entries.");
+    for (const auto &trans : ledgerTransactions) {
+        if (trans.totalAmount > 0) {
+            ledgerSales += trans.totalAmount;
+        } else {
+            ledgerPurchases += qAbs(trans.totalAmount);
+        }
+    }
+
+    // Get ledger balance (simplified - sum of all transactions)
+    // In a full implementation, you'd track account balances properly
+    double ledgerBalance = ledgerSales - ledgerPurchases;
+
+    int discrepancyCount = 0;
+
+    // Helper lambda to add a row
+    auto addRow = [this, &discrepancyCount](const QString &field,
+                                            const QString &ledgerVal,
+                                            const QString &saveVal,
+                                            double diff) {
+        QList<QStandardItem*> row;
+        row << new QStandardItem(field);
+        row << new QStandardItem(ledgerVal);
+        row << new QStandardItem(saveVal);
+
+        QString diffStr;
+        if (diff > 0) {
+            diffStr = QString("+$%L1").arg(diff, 0, 'f', 0);
+        } else if (diff < 0) {
+            diffStr = QString("-$%L1").arg(qAbs(diff), 0, 'f', 0);
+        } else {
+            diffStr = "Match";
+        }
+        row << new QStandardItem(diffStr);
+
+        // Color code
+        bool isMatch = (qAbs(diff) < 0.01);
+        QColor color = isMatch ? QColor(0, 128, 0) : Qt::red;
+
+        for (auto item : row) {
+            item->setForeground(color);
+        }
+
+        if (!isMatch) {
+            discrepancyCount++;
+        }
+
+        m_validationModel->appendRow(row);
+    };
+
+    // Compare Personal Money / Balance
+    double moneyDiff = m_parsedData.money - ledgerBalance;
+    addRow("Personal Money",
+           QString("$%L1").arg(ledgerBalance, 0, 'f', 0),
+           QString("$%L1").arg(m_parsedData.money),
+           moneyDiff);
+
+    // Compare Transaction Count
+    int countDiff = m_parsedData.transactionCount - ledgerTransactions.size();
+    addRow("Transaction Count",
+           QString::number(ledgerTransactions.size()),
+           QString::number(m_parsedData.transactionCount),
+           countDiff);
+
+    // Compare Total Sales
+    double salesDiff = m_parsedData.totalSales - ledgerSales;
+    addRow("Total Sales",
+           QString("$%L1").arg(ledgerSales, 0, 'f', 0),
+           QString("$%L1").arg(m_parsedData.totalSales, 0, 'f', 0),
+           salesDiff);
+
+    // Compare Total Purchases
+    double purchasesDiff = m_parsedData.totalPurchases - ledgerPurchases;
+    addRow("Total Purchases",
+           QString("$%L1").arg(ledgerPurchases, 0, 'f', 0),
+           QString("$%L1").arg(m_parsedData.totalPurchases, 0, 'f', 0),
+           purchasesDiff);
+
+    // Resize columns
+    m_validationTable->resizeColumnsToContents();
+
+    // Update summary
+    if (discrepancyCount == 0) {
+        m_validationSummaryLabel->setText(
+            "<span style='color: green; font-weight: bold;'>✓ All values match!</span>");
+    } else {
+        m_validationSummaryLabel->setText(
+            QString("<span style='color: red; font-weight: bold;'>⚠ Found %1 discrepanc%2</span>")
+                .arg(discrepancyCount)
+                .arg(discrepancyCount == 1 ? "y" : "ies"));
+    }
 }

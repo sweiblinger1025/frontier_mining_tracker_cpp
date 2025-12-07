@@ -77,6 +77,18 @@ private:
 
     // Current save file path
     QString m_currentSaveFilePath;
+
+    // Parsed save file data (for validation)
+    struct ParsedSaveData {
+        bool valid = false;
+        int money = 0;
+        QString map;
+        int transactionCount = 0;
+        double totalSales = 0;
+        double totalPurchases = 0;
+    };
+
+    ParsedSaveData m_parsedData;
 };
 
 #endif // AUDITORWIDGET_H
