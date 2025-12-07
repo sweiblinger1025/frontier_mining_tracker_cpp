@@ -1,6 +1,8 @@
 // Own header first
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
+#include "core/itemimporter.h"
+#include "core/vehicleimporter.h"
 
 // Project headers
 #include "dashboardwidget.h"
@@ -16,11 +18,15 @@
 #include <QMenu>
 #include <QAction>
 #include <QStatusBar>
+#include <QFileDialog>
+#include <QMessageBox>
+#include <QDir>
 
 MainWindow::MainWindow(Frontier::Database *database, QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , m_database(database)
+    , m_operationsManager(nullptr)
 {
     ui->setupUi(this);
 
@@ -29,14 +35,17 @@ MainWindow::MainWindow(Frontier::Database *database, QWidget *parent)
     setMinimumSize(1024, 700);
     resize(1280, 800);
 
+    // Create Operations Manager
+    m_operationsManager = new Frontier::OperationsManager(m_database, this);
+
     // === Create Tab Widget ===
     m_tabWidget = new QTabWidget(this);
     setCentralWidget(m_tabWidget);
 
-    // Create tab widgets - pass database to DataHub
+    // Create tab widgets
     DashboardWidget *dashboardWidget = new DashboardWidget(this);
     FinanceWidget *financeWidget = new FinanceWidget(m_database, this);
-    OperationsWidget *operationsWidget = new OperationsWidget(this);
+    OperationsWidget *operationsWidget = new OperationsWidget(m_operationsManager, this);
     DataHubWidget *dataHubWidget = new DataHubWidget(m_database, this);
     AuditorWidget *auditorWidget = new AuditorWidget(m_database, this);
 
@@ -62,6 +71,23 @@ MainWindow::MainWindow(Frontier::Database *database, QWidget *parent)
 
     QAction *saveAsAction = fileMenu->addAction("Save &As...");
     saveAsAction->setShortcut(QKeySequence("Ctrl+Shift+S"));
+
+    fileMenu->addSeparator();
+
+    // Import submenu
+    QMenu *importMenu = fileMenu->addMenu("&Import");
+
+    m_importItemsAction = new QAction("&Items...", this);
+    m_importItemsAction->setStatusTip("Import items from JSON file");
+    connect(m_importItemsAction, &QAction::triggered,
+            this, &MainWindow::onImportItems);
+    importMenu->addAction(m_importItemsAction);
+
+    m_importVehiclesAction = new QAction("&Vehicles...", this);
+    m_importVehiclesAction->setStatusTip("Import vehicles from JSON file");
+    connect(m_importVehiclesAction, &QAction::triggered,
+            this, &MainWindow::onImportVehicles);
+    importMenu->addAction(m_importVehiclesAction);
 
     fileMenu->addSeparator();
 
@@ -123,6 +149,137 @@ MainWindow::MainWindow(Frontier::Database *database, QWidget *parent)
 
     statusBar()->addPermanentWidget(m_dayLabel);
     statusBar()->addPermanentWidget(m_balanceLabel);
+}
+
+void MainWindow::onImportItems()
+{
+    // Start in the application's data directory if it exists
+    QString startDir = QCoreApplication::applicationDirPath() + "/data";
+    if (!QDir(startDir).exists()) {
+        startDir = QDir::homePath();
+    }
+
+    QString jsonPath = QFileDialog::getOpenFileName(
+        this,
+        "Select Item Data File",
+        startDir,
+        "JSON Files (*.json);;All Files (*)"
+    );
+
+    if (jsonPath.isEmpty()) {
+        return;  // User cancelled
+    }
+
+    // Ask about clearing existing data
+    QMessageBox::StandardButton reply = QMessageBox::question(
+        this,
+        "Import Items",
+        "Do you want to replace all existing items?\n\n"
+        "Yes = Clear existing and import new\n"
+        "No = Add to existing items",
+        QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel
+    );
+
+    if (reply == QMessageBox::Cancel) {
+        return;
+    }
+
+    bool clearExisting = (reply == QMessageBox::Yes);
+
+    // Perform import
+    int count = Frontier::ItemImporter::importFromJson(
+        jsonPath, m_database, clearExisting
+    );
+
+    if (count > 0) {
+        QMessageBox::information(
+            this,
+            "Import Complete",
+            QString("Successfully imported %1 items.").arg(count)
+        );
+
+        statusBar()->showMessage(QString("Imported %1 items").arg(count), 5000);
+
+        // Refresh Data Hub if it's the current tab
+        // The Data Hub will need to reload its data
+    } else if (count == 0) {
+        QMessageBox::warning(
+            this,
+            "Import Warning",
+            "No items were imported. The file may be empty."
+        );
+    } else {
+        QMessageBox::critical(
+            this,
+            "Import Failed",
+            "Could not import items from the selected file.\n\n"
+            "Please ensure the file is a valid items JSON file."
+        );
+    }
+}
+
+void MainWindow::onImportVehicles()
+{
+    // Start in the application's data directory if it exists
+    QString startDir = QCoreApplication::applicationDirPath() + "/data";
+    if (!QDir(startDir).exists()) {
+        startDir = QDir::homePath();
+    }
+
+    QString jsonPath = QFileDialog::getOpenFileName(
+        this,
+        "Select Vehicle Data File",
+        startDir,
+        "JSON Files (*.json);;All Files (*)"
+    );
+
+    if (jsonPath.isEmpty()) {
+        return;  // User cancelled
+    }
+
+    // Ask about clearing existing data
+    QMessageBox::StandardButton reply = QMessageBox::question(
+        this,
+        "Import Vehicles",
+        "Do you want to replace all existing vehicles?\n\n"
+        "Yes = Clear existing and import new\n"
+        "No = Merge with existing (update if ID exists)",
+        QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel
+    );
+
+    if (reply == QMessageBox::Cancel) {
+        return;
+    }
+
+    bool clearExisting = (reply == QMessageBox::Yes);
+
+    // Perform import
+    int count = Frontier::VehicleImporter::importFromJson(
+        jsonPath, m_database, clearExisting
+    );
+
+    if (count > 0) {
+        QMessageBox::information(
+            this,
+            "Import Complete",
+            QString("Successfully imported %1 vehicles.").arg(count)
+        );
+
+        statusBar()->showMessage(QString("Imported %1 vehicles").arg(count), 5000);
+    } else if (count == 0) {
+        QMessageBox::warning(
+            this,
+            "Import Warning",
+            "No vehicles were imported. The file may be empty."
+        );
+    } else {
+        QMessageBox::critical(
+            this,
+            "Import Failed",
+            "Could not import vehicles from the selected file.\n\n"
+            "Please ensure the file is a valid vehicles JSON file."
+        );
+    }
 }
 
 MainWindow::~MainWindow()

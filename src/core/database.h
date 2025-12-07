@@ -1,44 +1,51 @@
 /**
  * @file database.h
- * @brief SQLite database manager for Frontier Mining Tracker
- *
- * Handles all database operations including connection management,
- * table creation, and CRUD operations for all data types.
- *
- * @author Stephen
- * @date December 2025
+ * @brief Database access layer for Frontier Mining Tracker
  */
 
 #ifndef DATABASE_H
 #define DATABASE_H
 
+#include <QObject>
 #include <QString>
 #include <QVector>
+#include <QSqlDatabase>
+#include <QSqlQuery>
+#include <QSqlError>
+#include <optional>
+
 #include "types.h"
 
 namespace Frontier {
 
-class Database {
+class Database : public QObject
+{
+    Q_OBJECT
+
 public:
-    Database();
+    explicit Database(QObject *parent = nullptr);
     ~Database();
 
-    // Connection management
-    bool connect(const QString &path);
-    void disconnect();
-    bool isConnected() const;
-
-    // Schema setup
-    bool createTables();
-
-    // Error handling
+    // Database connection
+    bool connect(const QString &dbPath);
+    bool initialize(const QString &dbPath);  // Alias for connect + createTables
+    void close();
+    bool isOpen() const;
     QString lastError() const;
+
+    // Table creation (public for initial setup)
+    bool createTables();
 
     // === Item CRUD ===
     bool addItem(const Item &item);
     std::optional<Item> getItem(int id);
+    std::optional<Item> getItemByCode(const QString &code);
+    std::optional<Item> getItemByName(const QString &name);
     QVector<Item> getAllItems();
-    QVector<Item> getItemsByCategory(const QString &categoryMain);
+    QVector<QString> getAllCategories();
+    QVector<QString> getAllMainCategories();
+    QVector<QString> getSubCategoriesFor(const QString &mainCategory);
+    QVector<Item> getItemsByCategory(const QString &category);
     bool updateItem(const Item &item);
     bool deleteItem(int id);
 
@@ -52,27 +59,48 @@ public:
 
     // === Vehicle CRUD ===
     bool addVehicle(const Vehicle &vehicle);
-    std::optional<Vehicle> getVehicle(int id);
-    QVector<Vehicle> getAllVehicles();
+    std::optional<Vehicle> getVehicle(const QString &id);
+    QVector<Vehicle> getAllVehicles(bool activeOnly = false);
     bool updateVehicle(const Vehicle &vehicle);
-    bool deleteVehicle(int id);
+    bool deleteVehicle(const QString &id);
 
-    // === Inventory CRUD ===
-    bool addInventoryItem(const InventoryItem &item);
-    std::optional<InventoryItem> getInventoryItem(int id);
-    QVector<InventoryItem> getAllInventory();
-    bool updateInventoryItem(const InventoryItem &item);
-    bool deleteInventoryItem(int id);
+    // === Operations Tables ===
+    bool createOperationsTables();
+
+    // === Fuel Log CRUD ===
+    bool addFuelLogEntry(const FuelLogEntry &entry);
+    QVector<FuelLogEntry> getFuelLog(const QDateTime &from, const QDateTime &to,
+                                     const QString &equipmentId = QString());
+    double getTotalFuelInRange(const QDateTime &from, const QDateTime &to);
+    double getTotalFuelCostInRange(const QDateTime &from, const QDateTime &to);
+
+    // === Movement Session CRUD ===
+    int addMovementSession(const MovementSession &session);
+    std::optional<MovementSession> getMovementSession(int id);
+    QVector<MovementSession> getAllMovementSessions();
+    bool updateMovementSession(const MovementSession &session);
+    bool deleteMovementSession(int id);
+
+    // === Movement Equipment Usage CRUD ===
+    bool addOrUpdateEquipmentUsage(const MovementEquipmentUsage &usage);
+    QVector<MovementEquipmentUsage> getEquipmentUsageForSession(int sessionId);
+    bool deleteEquipmentUsage(int id);
+    bool deleteEquipmentUsageForSession(int sessionId);
 
 private:
+    bool createVehiclesTable();
+
     QString m_connectionName;
     QString m_lastError;
-    bool m_connected;
-
-    // Helper to convert PricingGroup enum to/from string
-    QString pricingGroupToString(PricingGroup group) const;
-    PricingGroup stringToPricingGroup(const QString &str) const;
 };
+
+// Helper functions for enum conversion
+QString pricingGroupToString(PricingGroup group);
+PricingGroup stringToPricingGroup(const QString &str);
+QString transactionTypeToString(TransactionType type);
+TransactionType stringToTransactionType(const QString &str);
+QString accountTypeToString(AccountType type);
+AccountType stringToAccountType(const QString &str);
 
 } // namespace Frontier
 

@@ -43,32 +43,46 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-# Find Qt
-find_package(Qt6 REQUIRED COMPONENTS Widgets Sql)
-find_package(Qt6 REQUIRED COMPONENTS Core)
+# ------------------------------------------------------------------------------
+# Find Qt6 Components
+# ------------------------------------------------------------------------------
+find_package(Qt6 REQUIRED COMPONENTS
+    Core
+    Widgets
+    Sql
+)
 
 # ------------------------------------------------------------------------------
 # Source Files
 # ------------------------------------------------------------------------------
-# Core business logic
-
 set(SOURCES
-    #Core
+    # Core
     src/main.cpp
     src/core/database.cpp
-    # src/core/saveparser.cpp
+    src/core/itemimporter.cpp
+    src/core/vehicleimporter.cpp
+    src/core/operationsmanager.cpp
 
-    #UI - Main
+    # UI - Main
     src/ui/mainwindow.cpp
 
     # UI - Tabs
     src/ui/dashboardwidget.cpp
     src/ui/financewidget.cpp
-    src/ui/operationswidget.cpp
     src/ui/datahubwidget.cpp
     src/ui/auditorwidget.cpp
 
-    #UI - Dialogs
+    # UI - Data Hub Subtabs
+    src/ui/vehiclespecstab.cpp
+
+    # UI - Operations Tab
+    src/ui/operationswidget.cpp
+    src/ui/equipmentoperationstab.cpp
+    src/ui/operationssettingstab.cpp
+    src/ui/fuellogwidget.cpp
+    src/ui/materialmovementtab.cpp
+
+    # UI - Dialogs
     src/ui/additemdialog.cpp
     src/ui/addtransactiondialog.cpp
 )
@@ -77,7 +91,10 @@ set(HEADERS
     # Core
     src/core/types.h
     src/core/database.h
-    # src/core/saveparser.h
+    src/core/itemimporter.h
+    src/core/vehicleimporter.h
+    src/core/operationsmanager.h
+    src/core/unitconverter.h
 
     # UI - Main
     src/ui/mainwindow.h
@@ -85,9 +102,18 @@ set(HEADERS
     # UI - Tabs
     src/ui/dashboardwidget.h
     src/ui/financewidget.h
-    src/ui/operationswidget.h
     src/ui/datahubwidget.h
     src/ui/auditorwidget.h
+
+    # UI - Data Hub Subtabs
+    src/ui/vehiclespecstab.h
+
+    # UI - Operations Tab
+    src/ui/operationswidget.h
+    src/ui/equipmentoperationstab.h
+    src/ui/operationssettingstab.h
+    src/ui/fuellogwidget.h
+    src/ui/materialmovementtab.h
 
     # UI - Dialogs
     src/ui/additemdialog.h
@@ -97,28 +123,60 @@ set(HEADERS
 set(UIS
     ui/mainwindow.ui
 )
+
 set(RESOURCES
     resources/icons.qrc
 )
 
-qt_add_executable(frontier_mining_tracker_cpp
+# ------------------------------------------------------------------------------
+# Create Executable
+# ------------------------------------------------------------------------------
+qt_add_executable(${PROJECT_NAME}
     ${SOURCES}
     ${HEADERS}
     ${UIS}
     ${RESOURCES}
 )
 
-set_target_properties(frontier_mining_tracker_cpp PROPERTIES
+# ------------------------------------------------------------------------------
+# Target Configuration
+# ------------------------------------------------------------------------------
+# Tell AUTOUIC where to find .ui files
+set_target_properties(${PROJECT_NAME} PROPERTIES
     AUTOUIC_SEARCH_PATHS "${CMAKE_SOURCE_DIR}/ui"
 )
 
-target_include_directories(frontier_mining_tracker_cpp PRIVATE
+# Include directories for #include statements
+target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/src/ui
 )
 
-target_link_libraries(frontier_mining_tracker_cpp PRIVATE
+# Link Qt6 libraries
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    Qt6::Core
     Qt6::Widgets
     Qt6::Sql
 )
-target_link_libraries(frontier_mining_tracker_cpp PRIVATE Qt6::Core)
+
+# ------------------------------------------------------------------------------
+# Copy Data Files to Build Directory
+# ------------------------------------------------------------------------------
+# This copies the data folder (containing vehicles.json, etc.) to the build
+# directory so the application can find them at runtime.
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/data"
+        "$<TARGET_FILE_DIR:${PROJECT_NAME}>/data"
+    COMMENT "Copying data folder to build directory..."
+)
+
+# ------------------------------------------------------------------------------
+# Installation (Optional - for future use)
+# ------------------------------------------------------------------------------
+# install(TARGETS ${PROJECT_NAME}
+#     BUNDLE DESTINATION .
+#     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+# )
+# install(DIRECTORY data/ DESTINATION data)

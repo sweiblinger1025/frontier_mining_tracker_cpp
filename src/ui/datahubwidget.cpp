@@ -5,6 +5,7 @@
 
 #include "datahubwidget.h"
 #include "additemdialog.h"
+#include "vehiclespecstab.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -16,6 +17,7 @@ DataHubWidget::DataHubWidget(Frontier::Database *database, QWidget *parent)
     , m_database(database)
     , m_model(nullptr)
     , m_proxyModel(nullptr)
+    , m_vehicleSpecsTab(nullptr)
 {
     setupUi();
     loadCategories();
@@ -36,7 +38,12 @@ void DataHubWidget::setupUi()
 
     // Add tabs
     m_subTabs->addTab(createItemsTab(), "Items");
-    m_subTabs->addTab(new QLabel("Vehicle Specs - Coming Soon"), "Vehicle Specs");
+    
+    // Vehicle Specs tab (now functional!)
+    m_vehicleSpecsTab = new VehicleSpecsTab(m_database, this);
+    m_subTabs->addTab(m_vehicleSpecsTab, "Vehicle Specs");
+    
+    // Placeholder tabs for future
     m_subTabs->addTab(new QLabel("Factory Buildings - Coming Soon"), "Factory - Buildings");
     m_subTabs->addTab(new QLabel("Recipes - Coming Soon"), "Recipes");
     m_subTabs->addTab(new QLabel("Locations - Coming Soon"), "Locations");
@@ -174,22 +181,22 @@ void DataHubWidget::loadItems()
         // Category (display format)
         row.append(new QStandardItem(item.displayCategory()));
 
-        // Buy Price (formatted)
+        // Buy Price (formatted - fixed notation for large numbers)
         QStandardItem *buyItem = new QStandardItem();
-        buyItem->setData(QString("$%L1").arg(item.buyPriceDisplay), Qt::DisplayRole);
+        buyItem->setData(QString("$%L1").arg(item.buyPriceDisplay, 0, 'f', 0), Qt::DisplayRole);
         buyItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
         row.append(buyItem);
 
-        // Sell Price (formatted)
+        // Sell Price (formatted - fixed notation for large numbers)
         QStandardItem *sellItem = new QStandardItem();
-        sellItem->setData(QString("$%L1").arg(item.sellPriceDisplay), Qt::DisplayRole);
+        sellItem->setData(QString("$%L1").arg(item.sellPriceDisplay, 0, 'f', 0), Qt::DisplayRole);
         sellItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
         row.append(sellItem);
 
         // Margin (calculated)
         double margin = item.sellPriceInternal - item.buyPriceInternal;
         QStandardItem *marginItem = new QStandardItem();
-        marginItem->setData(QString("$%L1").arg(static_cast<int>(margin)), Qt::DisplayRole);
+        marginItem->setData(QString("$%L1").arg(margin, 0, 'f', 0), Qt::DisplayRole);
         marginItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
         if (margin < 0) {
             marginItem->setForeground(QBrush(Qt::red));
@@ -237,16 +244,13 @@ void DataHubWidget::loadItems()
         }
         row.append(craftableItem);
 
-        // Store item ID in first column for reference
+        // Store item ID in first column for later retrieval
         row[0]->setData(item.id.value_or(-1), Qt::UserRole);
 
         m_model->appendRow(row);
     }
 
-    // Update item count
     m_itemCountLabel->setText(QString("Items: %1").arg(m_items.size()));
-
-    // Resize columns to content
     m_tableView->resizeColumnsToContents();
 }
 
@@ -254,6 +258,11 @@ void DataHubWidget::refreshData()
 {
     loadCategories();
     loadItems();
+    
+    // Also refresh Vehicle Specs tab
+    if (m_vehicleSpecsTab) {
+        m_vehicleSpecsTab->refreshData();
+    }
 }
 
 void DataHubWidget::applyFilters()
@@ -301,19 +310,20 @@ void DataHubWidget::onCategoryFilterChanged(int index)
             row.append(new QStandardItem(item.name));
             row.append(new QStandardItem(item.displayCategory()));
 
+            // Fixed notation for large numbers
             QStandardItem *buyItem = new QStandardItem();
-            buyItem->setData(QString("$%L1").arg(item.buyPriceDisplay), Qt::DisplayRole);
+            buyItem->setData(QString("$%L1").arg(item.buyPriceDisplay, 0, 'f', 0), Qt::DisplayRole);
             buyItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
             row.append(buyItem);
 
             QStandardItem *sellItem = new QStandardItem();
-            sellItem->setData(QString("$%L1").arg(item.sellPriceDisplay), Qt::DisplayRole);
+            sellItem->setData(QString("$%L1").arg(item.sellPriceDisplay, 0, 'f', 0), Qt::DisplayRole);
             sellItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
             row.append(sellItem);
 
             double margin = item.sellPriceInternal - item.buyPriceInternal;
             QStandardItem *marginItem = new QStandardItem();
-            marginItem->setData(QString("$%L1").arg(static_cast<int>(margin)), Qt::DisplayRole);
+            marginItem->setData(QString("$%L1").arg(margin, 0, 'f', 0), Qt::DisplayRole);
             marginItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
             if (margin < 0) {
                 marginItem->setForeground(QBrush(Qt::red));

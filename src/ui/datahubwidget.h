@@ -1,6 +1,6 @@
 /**
  * @file datahubwidget.h
- * @brief Data Hub tab - Reference data management
+ * @brief Data Hub main widget with subtabs
  */
 
 #ifndef DATAHUBWIDGET_H
@@ -13,10 +13,13 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QLabel>
-#include <QSortFilterProxyModel>
 #include <QStandardItemModel>
+#include <QSortFilterProxyModel>
 
 #include "core/database.h"
+
+// Forward declaration
+class VehicleSpecsTab;
 
 class DataHubWidget : public QWidget
 {
@@ -26,11 +29,10 @@ public:
     explicit DataHubWidget(Frontier::Database *database, QWidget *parent = nullptr);
     ~DataHubWidget();
 
+public slots:
     void refreshData();
 
 private slots:
-
-    // Items tab slots
     void onCategoryFilterChanged(int index);
     void onSearchTextChanged(const QString &text);
     void onAddItemClicked();
@@ -39,32 +41,32 @@ private slots:
 
 private:
     void setupUi();
-
-    // Items tab setup
     QWidget* createItemsTab();
     void loadCategories();
     void loadItems();
     void applyFilters();
 
-    // Database reference
     Frontier::Database *m_database;
 
-    // Subtabs
+    // Main tab widget
     QTabWidget *m_subTabs;
 
-    // Items tab UI Components
+    // Subtab widgets
+    VehicleSpecsTab *m_vehicleSpecsTab;
+
+    // Items tab UI elements
     QComboBox *m_categoryFilter;
     QLineEdit *m_searchBox;
     QTableView *m_tableView;
-    QLabel *m_itemCountLabel;
     QPushButton *m_addButton;
     QPushButton *m_deleteButton;
+    QLabel *m_itemCountLabel;
 
-    // Items Data Model
+    // Items model
     QStandardItemModel *m_model;
     QSortFilterProxyModel *m_proxyModel;
 
-    // Items Data cache
+    // Cached data
     QVector<Frontier::Item> m_items;
 };
 

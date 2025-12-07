@@ -1,30 +1,19 @@
 /**
  * @file types.h
  * @brief Core data types for Frontier Mining Tracker
- *
- * Contains all enums, structs, and helper functions used
- * throughout the application.
- *
- * @author Stephen
- * @date December 2025
  */
 
 #ifndef TYPES_H
 #define TYPES_H
 
 #include <QString>
-#include <QDate>
-#include <QVector>
+#include <QDateTime>
 #include <optional>
-#include <cmath>
 
 namespace Frontier {
 
-// === ENUMS ===
+// === Enums ===
 
-/**
- * @brief Transaction types for the ledger
- */
 enum class TransactionType {
     Sale,
     Purchase,
@@ -32,225 +21,154 @@ enum class TransactionType {
     Fuel
 };
 
-/**
- * @brief Account types for transactions
- */
 enum class AccountType {
-    Personal,
-    Company
+    Company,
+    Personal
 };
 
-/**
- * @brief Game mode affects pricing and mechanics
- */
-enum class GameMode {
-    Normal,
-    Hard
-};
-
-/**
- * @brief Concrete quality tiers
- */
-enum class ConcreteQuality {
-    Regular,        // Standard concrete
-    Rough,          // Rough concrete
-    Polished        // Higher quality, higher price
-};
-
-/**
- * @brief Stock status for inventory items
- */
-enum class StockStatus {
-    InStock,
-    LowStock,
-    OutOfStock
-};
-
-/**
- * @brief Pricing group based on sell percentage
- */
 enum class PricingGroup {
-    Base70,         // Standard 70% sell rate (most items)
-    Custom          // Manually specified (doesn't fit pattern)
+    Base70,
+    // Resource72,  // Commented out - all items use 70%
+    // Special75,   // Commented out - all items use 70%
+    Custom
 };
 
-// TODO: Add MaintenanceType enum when maintenance tracking is needed
+enum class UnitSystem {
+    Metric,     // m³, liters, km
+    Imperial    // yd³, gallons, miles
+};
 
-// === HELPER FUNCTIONS ===
+// === Helper Functions ===
 
-/**
- * @brief Convert internal price to display price (game UI rounding)
- * @param internal The exact internal price
- * @return Rounded integer for display
- */
-inline int toDisplayPrice(double internal) {
-    return static_cast<int>(std::round(internal));
-}
-
-/**
- * @brief Calculate sell price based on pricing group
- * @param buyPrice The buy price
- * @param group The pricing group
- * @return Calculated internal sell price
- */
 inline double calculateSellPrice(double buyPrice, PricingGroup group) {
     switch (group) {
     case PricingGroup::Base70:
         return buyPrice * 0.70;
-    //case PricingGroup::Resource72:
-    //  return buyPrice * 0.72;
-    //case PricingGroup::Special75:
-    //  return buyPrice * 0.75;
     case PricingGroup::Custom:
     default:
-        return buyPrice * 0.70;  // Fallback to 70%
+        return buyPrice * 0.70;
     }
 }
 
-// inline int toDisplayPriceForGroup(double internalPrice, PricingGroup group){
-//     if (group == PricingGroup::Special75){
-//         return static_cast<int>(std::floor(internalPrice));
-//     }
-//     return static_cast<int>(std::round(internalPrice));
-// }
+// === Data Structures ===
 
-// === STRUCTS ===
+struct Item {
+    std::optional<int> id;
+    QString code;                   // "100001"
+    QString name;                   // "Iron Ore"
+    
+    // Categories
+    QString categoryMain;           // "Ore", "Fuel", "Equipment"
+    QString categorySub;            // "Metal Ore", "Diesel", etc.
+    
+    // Pricing (internal = fractional for calculations, display = rounded for single items)
+    double buyPriceInternal = 0;    // Fractional buy price
+    double buyPriceDisplay = 0;     // Rounded buy price (for qty = 1)
+    double sellPriceInternal = 0;   // Fractional sell price (for qty > 1)
+    double sellPriceDisplay = 0;    // Rounded sell price (for qty = 1)
+    
+    // Item properties
+    double weight = 0;
+    bool isPurchasable = true;      // Can buy from shop
+    bool isSellable = true;         // Can sell to shop
+    bool isCraftable = false;       // Can be crafted
+    
+    PricingGroup pricingGroup = PricingGroup::Base70;
+    QString notes;
+    
+    // Helper methods
+    QString displayCategory() const {
+        if (categorySub.isEmpty()) {
+            return categoryMain;
+        }
+        return categoryMain + " - " + categorySub;
+    }
+    
+    double roiPercent() const {
+        if (buyPriceInternal <= 0) return 0;
+        return ((sellPriceInternal - buyPriceInternal) / buyPriceInternal) * 100.0;
+    }
+};
 
-/**
- * @brief A financial transaction record
- */
 struct Transaction {
-    std::optional<int> id;      // Database ID (nullopt if not saved yet)
-    QDate date;                 // When the transaction occurred
-    TransactionType type;       // Sale, Purchase, Transfer, Fuel
-    AccountType account;        // Personal or Company
-    QString item;               // Item name (e.g., "Fast Pickaxe")
-    QString category;           // Auto-filled from item lookup
-    int quantity;               // Number of items
-    double unitPrice;           // Price per item
-    double totalAmount;         // quantity * unitPrice
-
-    // Calculated helper
+    std::optional<int> id;
+    QDate date;
+    TransactionType type;
+    AccountType account;
+    QString item;                   // Item name
+    QString category;               // Item category
+    int quantity = 1;
+    double unitPrice = 0;
+    double totalAmount = 0;
+    QString notes;
+    
+    // Helper method - determines if this is income (sales) vs expense
     bool isIncome() const {
         return type == TransactionType::Sale;
     }
 };
 
-/**
- * @brief An item in the reference database
- */
-struct Item {
-    std::optional<int> id;
-    QString name;
-    QString categoryMain;
-    QString categorySub;
-
-    // Internal prices (exact, for calculations)
-    double buyPriceInternal;        // Exact buy price
-    double sellPriceInternal;       // Exact sell price (can be fractional)
-
-    // Display prices (what game UI shows)
-    int buyPriceDisplay;            // Rounded for display
-    int sellPriceDisplay;           // Rounded for display
-
-    bool isSellable;
-    bool isPurchasable;
-    bool isCraftable;
-
-    PricingGroup pricingGroup;
-    QString notes;
-
-    // === Helper Methods ===
-
-    QString displayCategory() const {
-        return categoryMain + " - " + categorySub;
-    }
-
-    // Calculate current buy with skill discount (uses internal)
-    double currentBuyPrice(double discountPercent = 0.0) const {
-        return buyPriceInternal * (1.0 - discountPercent / 100.0);
-    }
-
-    // Margin using internal prices
-    double margin(double discountPercent = 0.0) const {
-        return sellPriceInternal - currentBuyPrice(discountPercent);
-    }
-
-    // ROI using internal prices
-    double roiPercent(double discountPercent = 0.0) const {
-        double buyPrice = currentBuyPrice(discountPercent);
-        if (buyPrice == 0) return 0.0;
-        return (margin(discountPercent) / buyPrice) * 100.0;
-    }
-
-    // Sell ratio (internal)
-    double sellRatio() const {
-        if (buyPriceInternal == 0) return 0.0;
-        return sellPriceInternal / buyPriceInternal;
-    }
-
-    // Update display prices from internal
-    void updateDisplayPrices() {
-        buyPriceDisplay = toDisplayPrice(buyPriceInternal);
-        sellPriceDisplay = toDisplayPrice(sellPriceInternal);
-    }
-
-    // Calculate and set sell price from pricing group
-    void calculateSellFromGroup() {
-        sellPriceInternal = calculateSellPrice(buyPriceInternal, pricingGroup);
-        updateDisplayPrices();
-    }
-};
-
-/**
- * @brief A vehicle in the fleet
- */
 struct Vehicle {
-    std::optional<int> id;
-    QString name;               // "Avrik DX20E"
-    QString type;               // "Truck", "Excavator", etc.
-    double purchasePrice;
-    double fuelCapacity;
-    double fuelConsumption;     // Per hour or per trip
+    QString id;                     // Primary key, e.g. "ARVIK_L9"
+    QString name;                   // Display name, e.g. "Arvik L9"
+
+    // Categories
+    QString categoryMain;           // "Loader", "Excavator", "Rock Truck", "Drill"
+    QString categorySub;            // "Wheel Loader", "Haul Truck", "Crawler"
+
+    // Capacities (stored in METRIC)
+    double bucketCapacityM3 = 0;    // For loaders/excavators (cubic meters)
+    double truckCapacityM3 = 0;     // For haul trucks (cubic meters)
+
+    // Fuel (stored in METRIC)
+    double tankCapacityL = 0;       // Tank size in liters
+    double fuelUseLPerHour = 0;     // Fuel consumption L/hr
+
+    // Financial
+    double purchasePrice = 0;
+
+    // Status
+    bool active = true;
+
+    // Notes
     QString notes;
 };
 
-/**
- * @brief An ingredient for a recipe
- */
-struct RecipeInput {
-    QString item;               // "Iron Ore"
-    int quantity;               // How many needed
+// === Operations Types ===
+
+struct FuelLogEntry {
+    std::optional<int> id;
+    QDateTime dateTime;
+    QString equipmentId;            // FK to Vehicle.id
+    double liters = 0;
+    double unitPrice = 0;
+    double totalCost = 0;
+    double meterOrHours = 0;
+    QString source;                 // e.g. "On-site tank", "Gas Station"
+    QString notes;
 };
 
-/**
- * @brief A crafting recipe
- */
-struct Recipe {
+struct MovementSession {
     std::optional<int> id;
-    QString name;               // "Wood Beam Recipe"
-    QString outputItem;         // What it produces
-    int outputQuantity;         // How many it produces
-    QVector<RecipeInput> inputs; // Required ingredients
-    QString workbench;          // Which workbench is needed
-    double craftTime;           // Time to craft (seconds/minutes)
+    QDateTime startTime;
+    QDateTime endTime;              // Null until session closed
+    QString mapName;
+    QString notes;
 };
 
-/**
- * @brief An item in the player's inventory
- */
-struct InventoryItem {
+struct MovementEquipmentUsage {
     std::optional<int> id;
-    QString name;               // Links to Item name
-    QString category;           // Auto-filled from Item
-    int quantity;               // How many in stock
+    int sessionId = 0;              // FK to MovementSession.id
+    QString equipmentId;            // FK to Vehicle.id
+    QString role;                   // "Loader", "Excavator", "HaulTruck"
+    double hoursUsed = 0;
+    int buckets = 0;                // For loaders/excavators
+    int loads = 0;                  // For haul trucks (full loads)
+    int dumps = 0;                  // For haul trucks (dumps at hopper)
+    double estimatedFuelL = 0;
 
-    // Helper to get stock status
-    StockStatus stockStatus() const {
-        if (quantity <= 0) return StockStatus::OutOfStock;
-        if (quantity < 10) return StockStatus::LowStock;
-        return StockStatus::InStock;
-    }
+    // Computed at runtime, not stored in DB
+    double volumeM3 = 0;
 };
 
 } // namespace Frontier
