@@ -38,7 +38,7 @@ MainWindow::MainWindow(Frontier::Database *database, QWidget *parent)
     FinanceWidget *financeWidget = new FinanceWidget(m_database, this);
     OperationsWidget *operationsWidget = new OperationsWidget(this);
     DataHubWidget *dataHubWidget = new DataHubWidget(m_database, this);
-    AuditorWidget *auditorWidget = new AuditorWidget(this);
+    AuditorWidget *auditorWidget = new AuditorWidget(m_database, this);
 
     // Add tabs with icons
     m_tabWidget->addTab(dashboardWidget, QIcon(":/icons/icons/chart-bar.svg"), "Dashboard");
