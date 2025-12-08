@@ -29,33 +29,14 @@ def generate_vehicle_id(name: str) -> str:
     return clean.upper()
 
 
-def parse_category(category: str) -> tuple:
-    """Parse category string into main and sub categories."""
-    if pd.isna(category):
-        return ("Unknown", "")
-    
-    main = category.replace("Vehicles - ", "").strip()
-    
-    category_map = {
-        "Rock Trucks": ("Rock Truck", "Haul Truck"),
-        "Excavators": ("Excavator", "Crawler"),
-        "Loaders": ("Loader", "Wheel Loader"),
-        "Dozers": ("Dozer", "Crawler Dozer"),
-        "Graders": ("Grader", "Motor Grader"),
-        "Paving": ("Paving", "Road Equipment"),
-        "Trucks": ("Truck", "Utility Truck"),
-        "Fuel Trucks": ("Truck", "Fuel Truck"),
-        "Flying": ("Drone", "UAV"),
-        "Tunneler": ("Tunneler", "Underground"),
-    }
-    
-    return category_map.get(main, (main, ""))
-
-
-def determine_capacity_type(category_main: str) -> str:
-    """Determine if capacity should go to bucket or truck field."""
-    truck_types = ["Rock Truck", "Truck"]
-    return "truck" if category_main in truck_types else "bucket"
+def determine_capacity_type(category: str) -> str:
+    """Determine if capacity should go to bucket or truck field based on category."""
+    # Rock Trucks and regular Trucks use truck capacity
+    truck_keywords = ["Rock Trucks", "Trucks", "Fuel Trucks"]
+    for keyword in truck_keywords:
+        if keyword in category:
+            return "truck"
+    return "bucket"
 
 
 def convert_excel_to_vehicles(excel_path: str) -> list:
@@ -80,23 +61,28 @@ def convert_excel_to_vehicles(excel_path: str) -> list:
             counter += 1
         seen_ids.add(vehicle_id)
         
-        category_main, category_sub = parse_category(row['Category'])
-        capacity_type = determine_capacity_type(category_main)
+        # Keep original category from Excel (e.g., "Vehicles - Rock Trucks")
+        category = str(row['Category']).strip() if pd.notna(row['Category']) else ""
         
-        capacity_m3 = float(row['Capacity (m3)']) if pd.notna(row['Capacity (m3)']) else 0.0
+        capacity_type = determine_capacity_type(category)
+        
+        capacity_m3 = float(row['Capacity (m3)']) if pd.notna(row.get('Capacity (m3)')) else 0.0
+        # Also try alternate column name
+        if capacity_m3 == 0 and 'Capacity (m³)' in row:
+            capacity_m3 = float(row['Capacity (m³)']) if pd.notna(row.get('Capacity (m³)')) else 0.0
         
         vehicle = {
             "id": vehicle_id,
             "name": name,
-            "category_main": category_main,
-            "category_sub": category_sub,
+            "category_main": category,  # Keep full category from Excel
+            "category_sub": "",         # Leave empty - not used
             "bucket_capacity_m3": capacity_m3 if capacity_type == "bucket" else 0.0,
             "truck_capacity_m3": capacity_m3 if capacity_type == "truck" else 0.0,
-            "tank_capacity_l": float(row['Fuel Capacity (L)']) if pd.notna(row['Fuel Capacity (L)']) else 0.0,
-            "fuel_use_l_per_hour": float(row['Fuel Use (L/Hour)']) if pd.notna(row['Fuel Use (L/Hour)']) else 0.0,
-            "purchase_price": float(row['Purchase Price']) if pd.notna(row['Purchase Price']) else 0.0,
+            "tank_capacity_l": float(row['Fuel Capacity (L)']) if pd.notna(row.get('Fuel Capacity (L)')) else 0.0,
+            "fuel_use_l_per_hour": float(row['Fuel Use (L/Hour)']) if pd.notna(row.get('Fuel Use (L/Hour)')) else 0.0,
+            "purchase_price": float(row['Purchase Price']) if pd.notna(row.get('Purchase Price')) else 0.0,
             "active": 1,
-            "notes": str(row['Notes']) if pd.notna(row['Notes']) else ""
+            "notes": str(row['Notes']) if pd.notna(row.get('Notes')) else ""
         }
         
         vehicles.append(vehicle)
@@ -183,44 +169,26 @@ def print_summary(vehicles: list):
         categories[cat] = categories.get(cat, 0) + 1
     
     print("\nVehicles by Category:")
-    print("-" * 40)
+    print("-" * 50)
     for cat, count in sorted(categories.items()):
-        print(f"  {cat:20} {count:3}")
-    print("-" * 40)
-    print(f"  {'TOTAL':20} {len(vehicles):3}")
-    
-    # Capacity summary
-    loaders = [v for v in vehicles if v['bucket_capacity_m3'] > 0]
-    trucks = [v for v in vehicles if v['truck_capacity_m3'] > 0]
-    
-    print("\nCapacity Ranges:")
-    if loaders:
-        min_b = min(v['bucket_capacity_m3'] for v in loaders)
-        max_b = max(v['bucket_capacity_m3'] for v in loaders)
-        print(f"  Bucket: {min_b:.1f} - {max_b:.1f} m³")
-    if trucks:
-        min_t = min(v['truck_capacity_m3'] for v in trucks)
-        max_t = max(v['truck_capacity_m3'] for v in trucks)
-        print(f"  Truck:  {min_t:.1f} - {max_t:.1f} m³")
+        print(f"  {cat:35} {count:3}")
+    print("-" * 50)
+    print(f"  {'TOTAL':35} {len(vehicles):3}")
     
     # Sample
     print("\n" + "=" * 60)
-    print("SAMPLE VEHICLES")
+    print("SAMPLE VEHICLES (first 5)")
     print("=" * 60)
     
-    shown = set()
-    for v in vehicles:
-        if v['category_main'] not in shown:
-            shown.add(v['category_main'])
-            print(f"\n[{v['category_main']}]")
-            print(f"  ID:    {v['id']}")
-            print(f"  Name:  {v['name']}")
-            if v['bucket_capacity_m3'] > 0:
-                print(f"  Bucket: {v['bucket_capacity_m3']} m³")
-            if v['truck_capacity_m3'] > 0:
-                print(f"  Truck:  {v['truck_capacity_m3']} m³")
-            print(f"  Fuel:  {v['fuel_use_l_per_hour']} L/hr")
-            print(f"  Price: ${v['purchase_price']:,.0f}")
+    for v in vehicles[:5]:
+        print(f"\n  Name:     {v['name']}")
+        print(f"  Category: {v['category_main']}")
+        if v['bucket_capacity_m3'] > 0:
+            print(f"  Bucket:   {v['bucket_capacity_m3']} m³")
+        if v['truck_capacity_m3'] > 0:
+            print(f"  Truck:    {v['truck_capacity_m3']} m³")
+        print(f"  Fuel:     {v['fuel_use_l_per_hour']} L/hr")
+        print(f"  Price:    ${v['purchase_price']:,.0f}")
 
 
 def main():

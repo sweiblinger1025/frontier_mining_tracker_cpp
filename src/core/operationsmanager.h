@@ -26,10 +26,23 @@ public:
     UnitSystem unitSystem() const;
     void setUnitSystem(UnitSystem system);
 
+    // Cycle Time Settings (for auto-calculating hours from activity)
+    double loaderCycleTimeMinutes() const;
+    void setLoaderCycleTimeMinutes(double minutes);
+    double truckCycleTimeMinutes() const;
+    void setTruckCycleTimeMinutes(double minutes);
+
+    // Fuel Price Setting
+    double fuelPricePerLiter() const;
+    void setFuelPricePerLiter(double price);
+
     // Vehicle Specs
     QVector<Vehicle> getActiveVehicles() const;
     QVector<Vehicle> getAllVehicles() const;
     std::optional<Vehicle> getVehicle(const QString &id) const;
+
+    // Determine equipment role from category
+    QString determineRoleFromCategory(const QString &category) const;
 
     // Movement Sessions
     int startSession(const QString &mapName, const QString &notes);
@@ -58,6 +71,10 @@ public:
     // Calculations
     double calculateVolume(const MovementEquipmentUsage &usage) const;
     double calculateEstimatedFuel(const MovementEquipmentUsage &usage) const;
+    double calculateHoursFromActivity(const QString &role, int count) const;
+
+    // Auto-calculate hours for all equipment in a session
+    void autoCalculateSessionHours(int sessionId);
 
 signals:
     void unitSystemChanged(UnitSystem system);
@@ -66,11 +83,19 @@ signals:
     void movementSessionEnded(int sessionId);
     void movementSessionUpdated(int sessionId);
     void equipmentUsageUpdated(int sessionId);
+    void cycleTimesChanged();
 
 private:
     Database *m_database;
     UnitSystem m_unitSystem;
     std::optional<int> m_activeSessionId;
+
+    // Cycle time settings (in minutes)
+    double m_loaderCycleTimeMinutes;
+    double m_truckCycleTimeMinutes;
+
+    // Fuel price (per liter)
+    double m_fuelPricePerLiter;
 };
 
 } // namespace Frontier

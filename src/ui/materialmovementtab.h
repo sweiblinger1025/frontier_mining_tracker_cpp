@@ -39,7 +39,7 @@ private slots:
 
     // Equipment usage
     void onEquipmentChanged(int index);
-    void onRoleChanged(int index);
+    void onActivityCountChanged(int value);
     void onAddUpdateUsageClicked();
     void onDeleteUsageClicked();
     void onUsageSelectionChanged();
@@ -64,6 +64,7 @@ private:
     void loadSession(int sessionId);
     void loadEquipmentUsage();
     void updateEquipmentInfo();
+    void updateCalculatedValues();
     void updateSummary();
     void updateSessionControls();
     void clearSession();
@@ -88,16 +89,16 @@ private:
     QLabel *m_equipCategoryLabel;
     QLabel *m_equipCapacityLabel;
     QLabel *m_equipFuelLabel;
-    QComboBox *m_roleCombo;
-    QDoubleSpinBox *m_hoursSpinBox;
-    QSpinBox *m_bucketsSpinBox;
-    QSpinBox *m_loadsSpinBox;
-    QSpinBox *m_dumpsSpinBox;
-    QLabel *m_bucketsLabel;
-    QLabel *m_loadsLabel;
-    QLabel *m_dumpsLabel;
+    QLabel *m_roleLabel;           // Shows auto-detected role
+    QLabel *m_activityLabel;       // "Buckets:" or "Dumps:"
+    QSpinBox *m_activitySpinBox;   // Single input for count
+    QLabel *m_calculatedVolumeLabel;
+    QLabel *m_calculatedHoursLabel;
     QPushButton *m_addUpdateUsageButton;
     QPushButton *m_deleteUsageButton;
+
+    // Track current role for the selected equipment
+    QString m_currentRole;
 
     // Usage Table
     QTableView *m_usageTableView;

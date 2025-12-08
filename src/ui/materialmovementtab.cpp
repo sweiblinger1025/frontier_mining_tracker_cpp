@@ -20,6 +20,7 @@ MaterialMovementTab::MaterialMovementTab(Frontier::OperationsManager *manager,
     : QWidget(parent)
     , m_manager(manager)
     , m_currentSessionId(std::nullopt)
+    , m_currentRole("Loader")
 {
     setupUi();
     loadEquipmentCombo();
@@ -149,7 +150,7 @@ QWidget* MaterialMovementTab::createSessionHeaderPanel()
     layout->addWidget(notesLabel);
     layout->addWidget(m_sessionNotesEdit);
 
-    // Session buttons
+    // Session control buttons
     QHBoxLayout *buttonLayout = new QHBoxLayout();
 
     m_startSessionButton = new QPushButton("Start New Session");
@@ -188,13 +189,10 @@ QWidget* MaterialMovementTab::createEquipmentUsagePanel()
             this, &MaterialMovementTab::onEquipmentChanged);
     selectLayout->addRow("Equipment:", m_equipmentCombo);
 
-    m_roleCombo = new QComboBox();
-    m_roleCombo->addItem("Loader", "Loader");
-    m_roleCombo->addItem("Excavator", "Excavator");
-    m_roleCombo->addItem("Haul Truck", "HaulTruck");
-    connect(m_roleCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &MaterialMovementTab::onRoleChanged);
-    selectLayout->addRow("Role:", m_roleCombo);
+    // Role display (auto-detected, read-only)
+    m_roleLabel = new QLabel("-");
+    m_roleLabel->setStyleSheet("font-weight: bold;");
+    selectLayout->addRow("Role:", m_roleLabel);
 
     layout->addLayout(selectLayout);
 
@@ -212,34 +210,31 @@ QWidget* MaterialMovementTab::createEquipmentUsagePanel()
 
     layout->addWidget(infoBox);
 
-    // Usage inputs
-    QFormLayout *usageLayout = new QFormLayout();
+    // Activity input - single field that changes based on role
+    QFormLayout *activityLayout = new QFormLayout();
 
-    m_hoursSpinBox = new QDoubleSpinBox();
-    m_hoursSpinBox->setRange(0, 24);
-    m_hoursSpinBox->setDecimals(2);
-    m_hoursSpinBox->setSuffix(" hrs");
-    usageLayout->addRow("Hours Used:", m_hoursSpinBox);
+    m_activityLabel = new QLabel("Buckets:");
+    m_activitySpinBox = new QSpinBox();
+    m_activitySpinBox->setRange(0, 99999);
+    connect(m_activitySpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &MaterialMovementTab::onActivityCountChanged);
+    activityLayout->addRow(m_activityLabel, m_activitySpinBox);
 
-    // Buckets (for loaders/excavators)
-    m_bucketsLabel = new QLabel("Buckets:");
-    m_bucketsSpinBox = new QSpinBox();
-    m_bucketsSpinBox->setRange(0, 99999);
-    usageLayout->addRow(m_bucketsLabel, m_bucketsSpinBox);
+    layout->addLayout(activityLayout);
 
-    // Loads (for haul trucks)
-    m_loadsLabel = new QLabel("Loads:");
-    m_loadsSpinBox = new QSpinBox();
-    m_loadsSpinBox->setRange(0, 99999);
-    usageLayout->addRow(m_loadsLabel, m_loadsSpinBox);
+    // Calculated values display
+    QGroupBox *calcBox = new QGroupBox("Calculated Values");
+    QFormLayout *calcLayout = new QFormLayout(calcBox);
 
-    // Dumps (for haul trucks)
-    m_dumpsLabel = new QLabel("Dumps:");
-    m_dumpsSpinBox = new QSpinBox();
-    m_dumpsSpinBox->setRange(0, 99999);
-    usageLayout->addRow(m_dumpsLabel, m_dumpsSpinBox);
+    m_calculatedVolumeLabel = new QLabel("0 m³");
+    m_calculatedVolumeLabel->setStyleSheet("font-weight: bold; color: #2196F3;");
+    calcLayout->addRow("Volume:", m_calculatedVolumeLabel);
 
-    layout->addLayout(usageLayout);
+    m_calculatedHoursLabel = new QLabel("0.00 hrs");
+    m_calculatedHoursLabel->setStyleSheet("font-weight: bold; color: #4CAF50;");
+    calcLayout->addRow("Est. Hours:", m_calculatedHoursLabel);
+
+    layout->addWidget(calcBox);
 
     // Buttons
     QHBoxLayout *buttonLayout = new QHBoxLayout();
@@ -258,9 +253,6 @@ QWidget* MaterialMovementTab::createEquipmentUsagePanel()
 
     layout->addLayout(buttonLayout);
     layout->addStretch();
-
-    // Initialize visibility based on role
-    onRoleChanged(0);
 
     return group;
 }
@@ -354,7 +346,7 @@ void MaterialMovementTab::loadSession(int sessionId)
 {
     auto session = m_manager->getSession(sessionId);
     if (!session.has_value()) {
-        QMessageBox::warning(this, "Error", "Could not load session.");
+        clearSession();
         return;
     }
 
@@ -363,13 +355,14 @@ void MaterialMovementTab::loadSession(int sessionId)
     m_sessionIdLabel->setText(QString("#%1").arg(sessionId));
     m_mapNameEdit->setText(session->mapName);
     m_startTimeEdit->setDateTime(session->startTime);
-    m_sessionNotesEdit->setText(session->notes);
 
     if (session->endTime.isValid()) {
         m_endTimeEdit->setDateTime(session->endTime);
     } else {
         m_endTimeEdit->clear();
     }
+
+    m_sessionNotesEdit->setPlainText(session->notes);
 
     loadEquipmentUsage();
     updateSessionControls();
@@ -383,15 +376,9 @@ void MaterialMovementTab::loadEquipmentUsage()
 
     m_usageModel->clear();
 
+    // Set headers
     QStringList headers;
-    headers << "Equipment"
-            << "Role"
-            << "Hours"
-            << "Buckets"
-            << "Loads"
-            << "Dumps"
-            << QString("Volume (%1)").arg(UC::volumeUnitLabel(units))
-            << QString("Est. Fuel (%1)").arg(UC::fuelUnitLabel(units));
+    headers << "Equipment" << "Role" << "Count" << "Volume" << "Hours" << "Est. Fuel";
     m_usageModel->setHorizontalHeaderLabels(headers);
 
     if (!m_currentSessionId.has_value()) {
@@ -415,47 +402,29 @@ void MaterialMovementTab::loadEquipmentUsage()
         row << equipItem;
 
         // Role
-        row << new QStandardItem(usage.role);
+        QString roleDisplay = (usage.role == "HaulTruck") ? "Hauler" : "Loader";
+        row << new QStandardItem(roleDisplay);
 
-        // Hours
-        QStandardItem *hoursItem = new QStandardItem(QString::number(usage.hoursUsed, 'f', 2));
-        hoursItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        row << hoursItem;
-
-        // Buckets
-        QStandardItem *bucketsItem = new QStandardItem(
-            usage.buckets > 0 ? QString::number(usage.buckets) : "-"
-            );
-        bucketsItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        row << bucketsItem;
-
-        // Loads
-        QStandardItem *loadsItem = new QStandardItem(
-            usage.loads > 0 ? QString::number(usage.loads) : "-"
-            );
-        loadsItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        row << loadsItem;
-
-        // Dumps
-        QStandardItem *dumpsItem = new QStandardItem(
-            usage.dumps > 0 ? QString::number(usage.dumps) : "-"
-            );
-        dumpsItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        row << dumpsItem;
+        // Count (buckets or dumps)
+        int count = (usage.role == "HaulTruck") ? usage.dumps : usage.buckets;
+        QString countLabel = (usage.role == "HaulTruck") ?
+                                 QString("%1 dumps").arg(count) : QString("%1 buckets").arg(count);
+        QStandardItem *countItem = new QStandardItem(countLabel);
+        countItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        row << countItem;
 
         // Volume (converted)
-        double displayVolume = UC::volumeToDisplay(usage.volumeM3, units);
-        QStandardItem *volumeItem = new QStandardItem(
-            usage.volumeM3 > 0 ? QString::number(displayVolume, 'f', 2) : "-"
-            );
+        QStandardItem *volumeItem = new QStandardItem(UC::formatVolume(usage.volumeM3, units));
         volumeItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
         row << volumeItem;
 
+        // Hours
+        QStandardItem *hoursItem = new QStandardItem(QString("%1 hrs").arg(usage.hoursUsed, 0, 'f', 2));
+        hoursItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        row << hoursItem;
+
         // Estimated Fuel (converted)
-        double displayFuel = UC::fuelToDisplay(usage.estimatedFuelL, units);
-        QStandardItem *fuelItem = new QStandardItem(
-            usage.estimatedFuelL > 0 ? QString::number(displayFuel, 'f', 1) : "-"
-            );
+        QStandardItem *fuelItem = new QStandardItem(UC::formatFuel(usage.estimatedFuelL, units));
         fuelItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
         row << fuelItem;
 
@@ -476,27 +445,66 @@ void MaterialMovementTab::updateEquipmentInfo()
         m_equipCategoryLabel->setText("-");
         m_equipCapacityLabel->setText("-");
         m_equipFuelLabel->setText("-");
+        m_roleLabel->setText("-");
+        m_activityLabel->setText("Count:");
+        m_currentRole = "Loader";
         return;
     }
 
     auto spec = m_manager->getVehicle(equipmentId);
     if (!spec.has_value()) return;
 
-    m_equipCategoryLabel->setText(QString("%1 - %2").arg(spec->categoryMain, spec->categorySub));
+    // Auto-detect role from category
+    m_currentRole = m_manager->determineRoleFromCategory(spec->categoryMain);
 
-    // Show appropriate capacity based on role
-    QString role = m_roleCombo->currentData().toString();
-    if (role == "HaulTruck" && spec->truckCapacityM3 > 0) {
-        m_equipCapacityLabel->setText(UC::formatVolume(spec->truckCapacityM3, units));
-    } else if (spec->bucketCapacityM3 > 0) {
-        m_equipCapacityLabel->setText(UC::formatVolume(spec->bucketCapacityM3, units));
-    } else if (spec->truckCapacityM3 > 0) {
+    // Update role display
+    if (m_currentRole == "HaulTruck") {
+        m_roleLabel->setText("Hauler");
+        m_activityLabel->setText("Dumps:");
         m_equipCapacityLabel->setText(UC::formatVolume(spec->truckCapacityM3, units));
     } else {
-        m_equipCapacityLabel->setText("N/A");
+        m_roleLabel->setText("Loader");
+        m_activityLabel->setText("Buckets:");
+        m_equipCapacityLabel->setText(UC::formatVolume(spec->bucketCapacityM3, units));
     }
 
+    m_equipCategoryLabel->setText(spec->categoryMain);
     m_equipFuelLabel->setText(UC::formatFuelRate(spec->fuelUseLPerHour, units));
+
+    // Update calculated values
+    updateCalculatedValues();
+}
+
+void MaterialMovementTab::updateCalculatedValues()
+{
+    using UC = Frontier::UnitConverter;
+    Frontier::UnitSystem units = m_manager->unitSystem();
+
+    QString equipmentId = m_equipmentCombo->currentData().toString();
+    int count = m_activitySpinBox->value();
+
+    if (equipmentId.isEmpty() || count == 0) {
+        m_calculatedVolumeLabel->setText("0 " + UC::volumeUnitLabel(units));
+        m_calculatedHoursLabel->setText("0.00 hrs");
+        return;
+    }
+
+    auto spec = m_manager->getVehicle(equipmentId);
+    if (!spec.has_value()) return;
+
+    // Calculate volume
+    double volumeM3 = 0;
+    if (m_currentRole == "HaulTruck") {
+        volumeM3 = count * spec->truckCapacityM3;
+    } else {
+        volumeM3 = count * spec->bucketCapacityM3;
+    }
+
+    // Calculate hours from activity
+    double hours = m_manager->calculateHoursFromActivity(m_currentRole, count);
+
+    m_calculatedVolumeLabel->setText(UC::formatVolume(volumeM3, units));
+    m_calculatedHoursLabel->setText(QString("%1 hrs").arg(hours, 0, 'f', 2));
 }
 
 void MaterialMovementTab::updateSummary()
@@ -557,11 +565,7 @@ void MaterialMovementTab::updateSessionControls()
 
     // Equipment usage controls
     m_equipmentCombo->setEnabled(sessionActive);
-    m_roleCombo->setEnabled(sessionActive);
-    m_hoursSpinBox->setEnabled(sessionActive);
-    m_bucketsSpinBox->setEnabled(sessionActive);
-    m_loadsSpinBox->setEnabled(sessionActive);
-    m_dumpsSpinBox->setEnabled(sessionActive);
+    m_activitySpinBox->setEnabled(sessionActive);
     m_addUpdateUsageButton->setEnabled(sessionActive);
 
     // Fuel log generation
@@ -586,11 +590,9 @@ void MaterialMovementTab::clearSession()
 void MaterialMovementTab::clearUsageForm()
 {
     m_equipmentCombo->setCurrentIndex(0);
-    m_roleCombo->setCurrentIndex(0);
-    m_hoursSpinBox->setValue(0);
-    m_bucketsSpinBox->setValue(0);
-    m_loadsSpinBox->setValue(0);
-    m_dumpsSpinBox->setValue(0);
+    m_activitySpinBox->setValue(0);
+    m_calculatedVolumeLabel->setText("0");
+    m_calculatedHoursLabel->setText("0.00 hrs");
 }
 
 // === Slots ===
@@ -616,12 +618,13 @@ void MaterialMovementTab::onEndSessionClicked()
 
     int result = QMessageBox::question(this, "End Session",
                                        "Are you sure you want to end this session?\n\n"
+                                       "Equipment hours will be auto-calculated from activity counts.\n"
                                        "You can still view the session data, but cannot add new equipment usage.",
                                        QMessageBox::Yes | QMessageBox::No);
 
     if (result == QMessageBox::Yes) {
         m_manager->endSession(m_currentSessionId.value());
-        loadSession(m_currentSessionId.value());  // Reload to get end time
+        loadSession(m_currentSessionId.value());  // Reload to get end time and recalculated hours
         loadSessionHistory();
 
         // Check if auto-generate fuel log is enabled
@@ -668,25 +671,10 @@ void MaterialMovementTab::onEquipmentChanged(int index)
     updateEquipmentInfo();
 }
 
-void MaterialMovementTab::onRoleChanged(int index)
+void MaterialMovementTab::onActivityCountChanged(int value)
 {
-    Q_UNUSED(index);
-
-    QString role = m_roleCombo->currentData().toString();
-
-    // Show/hide appropriate fields based on role
-    bool isLoader = (role == "Loader" || role == "Excavator");
-    bool isTruck = (role == "HaulTruck");
-
-    m_bucketsLabel->setVisible(isLoader);
-    m_bucketsSpinBox->setVisible(isLoader);
-
-    m_loadsLabel->setVisible(isTruck);
-    m_loadsSpinBox->setVisible(isTruck);
-    m_dumpsLabel->setVisible(isTruck);
-    m_dumpsSpinBox->setVisible(isTruck);
-
-    updateEquipmentInfo();
+    Q_UNUSED(value);
+    updateCalculatedValues();
 }
 
 void MaterialMovementTab::onAddUpdateUsageClicked()
@@ -702,18 +690,33 @@ void MaterialMovementTab::onAddUpdateUsageClicked()
         return;
     }
 
+    int count = m_activitySpinBox->value();
+    if (count == 0) {
+        QMessageBox::warning(this, "Error", "Please enter a count greater than 0.");
+        return;
+    }
+
     Frontier::MovementEquipmentUsage usage;
     usage.sessionId = m_currentSessionId.value();
     usage.equipmentId = equipmentId;
-    usage.role = m_roleCombo->currentData().toString();
-    usage.hoursUsed = m_hoursSpinBox->value();
-    usage.buckets = m_bucketsSpinBox->value();
-    usage.loads = m_loadsSpinBox->value();
-    usage.dumps = m_dumpsSpinBox->value();
+    usage.role = m_currentRole;
 
+    // Set count based on role
+    if (m_currentRole == "HaulTruck") {
+        usage.dumps = count;
+        usage.buckets = 0;
+    } else {
+        usage.buckets = count;
+        usage.dumps = 0;
+    }
+    usage.loads = 0;  // Deprecated
+
+    // Hours and fuel will be calculated by manager
     m_manager->addOrUpdateEquipmentUsage(usage);
 
     clearUsageForm();
+    loadEquipmentUsage();
+    updateSummary();
 }
 
 void MaterialMovementTab::onDeleteUsageClicked()
@@ -737,14 +740,21 @@ void MaterialMovementTab::onDeleteUsageClicked()
 void MaterialMovementTab::onUsageSelectionChanged()
 {
     QModelIndexList selection = m_usageTableView->selectionModel()->selectedRows();
-    m_deleteUsageButton->setEnabled(!selection.isEmpty() &&
-                                    m_currentSessionId.has_value());
+    bool hasSelection = !selection.isEmpty();
 
-    if (!selection.isEmpty()) {
-        // Optionally populate form with selected usage for editing
+    // Check if session is still active
+    bool sessionActive = false;
+    if (m_currentSessionId.has_value()) {
+        auto session = m_manager->getSession(m_currentSessionId.value());
+        sessionActive = session.has_value() && !session->endTime.isValid();
+    }
+
+    m_deleteUsageButton->setEnabled(hasSelection && sessionActive);
+
+    if (hasSelection && sessionActive) {
+        // Populate form with selected usage for editing
         int row = selection.first().row();
         QString equipmentId = m_usageModel->item(row, 0)->data(Qt::UserRole + 1).toString();
-        QString role = m_usageModel->item(row, 1)->text();
 
         // Find and select equipment in combo
         int equipIndex = m_equipmentCombo->findData(equipmentId);
@@ -752,45 +762,37 @@ void MaterialMovementTab::onUsageSelectionChanged()
             m_equipmentCombo->setCurrentIndex(equipIndex);
         }
 
-        // Find and select role in combo
-        int roleIndex = m_roleCombo->findData(role);
-        if (roleIndex >= 0) {
-            m_roleCombo->setCurrentIndex(roleIndex);
+        // Get the count from the usage
+        auto usages = m_manager->getEquipmentUsageForSession(m_currentSessionId.value());
+        int usageId = m_usageModel->item(row, 0)->data(Qt::UserRole).toInt();
+        for (const auto &usage : usages) {
+            if (usage.id.has_value() && usage.id.value() == usageId) {
+                int count = (usage.role == "HaulTruck") ? usage.dumps : usage.buckets;
+                m_activitySpinBox->setValue(count);
+                break;
+            }
         }
-
-        // Set values
-        m_hoursSpinBox->setValue(m_usageModel->item(row, 2)->text().toDouble());
-
-        QString bucketsText = m_usageModel->item(row, 3)->text();
-        m_bucketsSpinBox->setValue(bucketsText == "-" ? 0 : bucketsText.toInt());
-
-        QString loadsText = m_usageModel->item(row, 4)->text();
-        m_loadsSpinBox->setValue(loadsText == "-" ? 0 : loadsText.toInt());
-
-        QString dumpsText = m_usageModel->item(row, 5)->text();
-        m_dumpsSpinBox->setValue(dumpsText == "-" ? 0 : dumpsText.toInt());
     }
 }
 
 void MaterialMovementTab::onUnitSystemChanged(Frontier::UnitSystem system)
 {
     Q_UNUSED(system);
-    updateEquipmentInfo();
     loadEquipmentUsage();
+    updateEquipmentInfo();
     updateSummary();
 }
 
 void MaterialMovementTab::onSessionStarted(int sessionId)
 {
-    Q_UNUSED(sessionId);
-    loadSessionHistory();
+    loadSession(sessionId);
 }
 
 void MaterialMovementTab::onSessionEnded(int sessionId)
 {
-    Q_UNUSED(sessionId);
-    loadSessionHistory();
-    updateSessionControls();
+    if (m_currentSessionId.has_value() && m_currentSessionId.value() == sessionId) {
+        loadSession(sessionId);
+    }
 }
 
 void MaterialMovementTab::onEquipmentUsageUpdated(int sessionId)
@@ -806,15 +808,14 @@ void MaterialMovementTab::onGenerateFuelLogClicked()
     if (!m_currentSessionId.has_value()) return;
 
     int result = QMessageBox::question(this, "Generate Fuel Log",
-                                       "This will create fuel log entries for all equipment in this session "
-                                       "based on their estimated fuel consumption.\n\n"
+                                       "This will create fuel log entries for all equipment used in this session.\n\n"
                                        "Continue?",
                                        QMessageBox::Yes | QMessageBox::No);
 
     if (result == QMessageBox::Yes) {
         m_manager->generateFuelLogFromSession(m_currentSessionId.value());
-        QMessageBox::information(this, "Success",
+        QMessageBox::information(this, "Complete",
                                  "Fuel log entries have been generated.\n\n"
-                                 "View them in the Fuel Log tab.");
+                                 "You can view them in the Fuel Log tab.");
     }
 }

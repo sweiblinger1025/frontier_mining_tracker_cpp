@@ -12,6 +12,7 @@
 #include <QCheckBox>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QDoubleSpinBox>
 
 #include "core/operationsmanager.h"
 
@@ -38,6 +39,14 @@ private:
     // Unit System
     QComboBox *m_unitSystemCombo;
     QLabel *m_unitPreviewLabel;
+
+    // Cycle Times
+    QDoubleSpinBox *m_loaderCycleTimeSpinBox;
+    QDoubleSpinBox *m_truckCycleTimeSpinBox;
+    QLabel *m_cycleTimeExampleLabel;
+
+    // Fuel Price
+    QDoubleSpinBox *m_fuelPriceSpinBox;
 
     // Default Values
     QLineEdit *m_defaultMapEdit;

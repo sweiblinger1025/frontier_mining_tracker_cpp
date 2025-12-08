@@ -8,6 +8,9 @@
 #include "core/database.h"
 #include "core/operationsmanager.h"
 
+// Forward declarations
+class DataHubWidget;
+
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
@@ -29,12 +32,15 @@ private:
 
     // Database reference
     Frontier::Database *m_database;
-    
+
     // Operations manager (owns this)
     Frontier::OperationsManager *m_operationsManager;
 
     // Tab widget
     QTabWidget *m_tabWidget;
+
+    // Keep reference to Data Hub for refreshing after imports
+    DataHubWidget *m_dataHubWidget;
 
     // Status bar widgets
     QLabel *m_dayLabel;

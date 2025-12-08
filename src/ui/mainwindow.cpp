@@ -27,6 +27,7 @@ MainWindow::MainWindow(Frontier::Database *database, QWidget *parent)
     , ui(new Ui::MainWindow)
     , m_database(database)
     , m_operationsManager(nullptr)
+    , m_dataHubWidget(nullptr)
 {
     ui->setupUi(this);
 
@@ -46,14 +47,14 @@ MainWindow::MainWindow(Frontier::Database *database, QWidget *parent)
     DashboardWidget *dashboardWidget = new DashboardWidget(this);
     FinanceWidget *financeWidget = new FinanceWidget(m_database, this);
     OperationsWidget *operationsWidget = new OperationsWidget(m_operationsManager, this);
-    DataHubWidget *dataHubWidget = new DataHubWidget(m_database, this);
+    m_dataHubWidget = new DataHubWidget(m_database, this);  // Store reference
     AuditorWidget *auditorWidget = new AuditorWidget(m_database, this);
 
     // Add tabs with icons
     m_tabWidget->addTab(dashboardWidget, QIcon(":/icons/icons/chart-bar.svg"), "Dashboard");
     m_tabWidget->addTab(financeWidget, QIcon(":/icons/icons/receipt-2.svg"), "Finance");
     m_tabWidget->addTab(operationsWidget, QIcon(":/icons/icons/building.svg"), "Operations");
-    m_tabWidget->addTab(dataHubWidget, QIcon(":/icons/icons/book.svg"), "Data Hub");
+    m_tabWidget->addTab(m_dataHubWidget, QIcon(":/icons/icons/book.svg"), "Data Hub");
     m_tabWidget->addTab(auditorWidget, QIcon(":/icons/icons/settings.svg"), "Auditor");
 
     // === Menu Bar ===
@@ -164,7 +165,7 @@ void MainWindow::onImportItems()
         "Select Item Data File",
         startDir,
         "JSON Files (*.json);;All Files (*)"
-    );
+        );
 
     if (jsonPath.isEmpty()) {
         return;  // User cancelled
@@ -178,7 +179,7 @@ void MainWindow::onImportItems()
         "Yes = Clear existing and import new\n"
         "No = Add to existing items",
         QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel
-    );
+        );
 
     if (reply == QMessageBox::Cancel) {
         return;
@@ -189,32 +190,34 @@ void MainWindow::onImportItems()
     // Perform import
     int count = Frontier::ItemImporter::importFromJson(
         jsonPath, m_database, clearExisting
-    );
+        );
 
     if (count > 0) {
         QMessageBox::information(
             this,
             "Import Complete",
             QString("Successfully imported %1 items.").arg(count)
-        );
+            );
 
         statusBar()->showMessage(QString("Imported %1 items").arg(count), 5000);
 
-        // Refresh Data Hub if it's the current tab
-        // The Data Hub will need to reload its data
+        // Refresh Data Hub to show new items
+        if (m_dataHubWidget) {
+            m_dataHubWidget->refreshData();
+        }
     } else if (count == 0) {
         QMessageBox::warning(
             this,
             "Import Warning",
             "No items were imported. The file may be empty."
-        );
+            );
     } else {
         QMessageBox::critical(
             this,
             "Import Failed",
             "Could not import items from the selected file.\n\n"
             "Please ensure the file is a valid items JSON file."
-        );
+            );
     }
 }
 
@@ -231,7 +234,7 @@ void MainWindow::onImportVehicles()
         "Select Vehicle Data File",
         startDir,
         "JSON Files (*.json);;All Files (*)"
-    );
+        );
 
     if (jsonPath.isEmpty()) {
         return;  // User cancelled
@@ -245,7 +248,7 @@ void MainWindow::onImportVehicles()
         "Yes = Clear existing and import new\n"
         "No = Merge with existing (update if ID exists)",
         QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel
-    );
+        );
 
     if (reply == QMessageBox::Cancel) {
         return;
@@ -256,29 +259,34 @@ void MainWindow::onImportVehicles()
     // Perform import
     int count = Frontier::VehicleImporter::importFromJson(
         jsonPath, m_database, clearExisting
-    );
+        );
 
     if (count > 0) {
         QMessageBox::information(
             this,
             "Import Complete",
             QString("Successfully imported %1 vehicles.").arg(count)
-        );
+            );
 
         statusBar()->showMessage(QString("Imported %1 vehicles").arg(count), 5000);
+
+        // Refresh Data Hub to show new vehicles
+        if (m_dataHubWidget) {
+            m_dataHubWidget->refreshData();
+        }
     } else if (count == 0) {
         QMessageBox::warning(
             this,
             "Import Warning",
             "No vehicles were imported. The file may be empty."
-        );
+            );
     } else {
         QMessageBox::critical(
             this,
             "Import Failed",
             "Could not import vehicles from the selected file.\n\n"
             "Please ensure the file is a valid vehicles JSON file."
-        );
+            );
     }
 }
 

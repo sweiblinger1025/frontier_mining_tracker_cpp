@@ -18,11 +18,11 @@ namespace Frontier {
 int ItemImporter::importFromJson(const QString &jsonPath, Database *database, bool clearExisting)
 {
     QVector<Item> items = loadFromJson(jsonPath);
-    
+
     if (items.isEmpty()) {
         return -1;
     }
-    
+
     // Clear existing items if requested
     if (clearExisting) {
         // Get all items and delete them
@@ -33,7 +33,7 @@ int ItemImporter::importFromJson(const QString &jsonPath, Database *database, bo
             }
         }
     }
-    
+
     // Import items
     int importedCount = 0;
     for (const auto &item : items) {
@@ -43,49 +43,65 @@ int ItemImporter::importFromJson(const QString &jsonPath, Database *database, bo
             qWarning() << "Failed to import item:" << item.name;
         }
     }
-    
+
     return importedCount;
 }
 
 QVector<Item> ItemImporter::loadFromJson(const QString &jsonPath)
 {
     QVector<Item> items;
-    
+
     QFile file(jsonPath);
     if (!file.open(QIODevice::ReadOnly)) {
         qWarning() << "Could not open file:" << jsonPath;
         return items;
     }
-    
+
     QByteArray data = file.readAll();
     file.close();
-    
+
     QJsonParseError parseError;
     QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
-    
+
     if (parseError.error != QJsonParseError::NoError) {
         qWarning() << "JSON parse error:" << parseError.errorString();
         return items;
     }
-    
-    if (!doc.isArray()) {
-        qWarning() << "JSON root is not an array";
+
+    // Handle both formats:
+    // 1. Plain array: [ {...}, {...} ]
+    // 2. Wrapped object: { "items": [ {...}, {...} ] }
+    QJsonArray array;
+
+    if (doc.isArray()) {
+        // Plain array format
+        array = doc.array();
+    } else if (doc.isObject()) {
+        // Wrapped object format - look for "items" key
+        QJsonObject root = doc.object();
+        if (root.contains("items") && root["items"].isArray()) {
+            array = root["items"].toArray();
+            qDebug() << "Loading from wrapped format, version:" << root["version"].toString();
+        } else {
+            qWarning() << "JSON object does not contain 'items' array";
+            return items;
+        }
+    } else {
+        qWarning() << "JSON root is neither array nor object";
         return items;
     }
-    
-    QJsonArray array = doc.array();
-    
+
     for (const QJsonValue &value : array) {
         if (!value.isObject()) continue;
-        
+
         QJsonObject obj = value.toObject();
-        
+
         Item item;
-        
+
         // Basic fields
         item.code = obj["code"].toString();
         item.name = obj["name"].toString();
-        
+
         // Categories - handle both old and new field names
         item.categoryMain = obj["category_main"].toString();
         if (item.categoryMain.isEmpty()) {
@@ -94,12 +110,12 @@ QVector<Item> ItemImporter::loadFromJson(const QString &jsonPath)
         if (item.categoryMain.isEmpty()) {
             item.categoryMain = obj["category"].toString();
         }
-        
+
         item.categorySub = obj["category_sub"].toString();
         if (item.categorySub.isEmpty()) {
             item.categorySub = obj["categorySub"].toString();
         }
-        
+
         // Prices - handle both old and new field names
         if (obj.contains("buy_price_internal")) {
             item.buyPriceInternal = obj["buy_price_internal"].toDouble();
@@ -110,13 +126,15 @@ QVector<Item> ItemImporter::loadFromJson(const QString &jsonPath)
         } else if (obj.contains("buy_price")) {
             item.buyPriceInternal = obj["buy_price"].toDouble();
         }
-        
+
         if (obj.contains("buy_price_display")) {
             item.buyPriceDisplay = obj["buy_price_display"].toDouble();
+        } else if (obj.contains("buyPriceDisplay")) {
+            item.buyPriceDisplay = obj["buyPriceDisplay"].toDouble();
         } else {
             item.buyPriceDisplay = std::round(item.buyPriceInternal);
         }
-        
+
         if (obj.contains("sell_price_internal")) {
             item.sellPriceInternal = obj["sell_price_internal"].toDouble();
         } else if (obj.contains("sellPriceInternal")) {
@@ -125,16 +143,18 @@ QVector<Item> ItemImporter::loadFromJson(const QString &jsonPath)
             // Calculate from buy price (70% sell rate)
             item.sellPriceInternal = item.buyPriceInternal * 0.70;
         }
-        
+
         if (obj.contains("sell_price_display")) {
             item.sellPriceDisplay = obj["sell_price_display"].toDouble();
+        } else if (obj.contains("sellPriceDisplay")) {
+            item.sellPriceDisplay = obj["sellPriceDisplay"].toDouble();
         } else {
             item.sellPriceDisplay = std::round(item.sellPriceInternal);
         }
-        
+
         // Weight
         item.weight = obj["weight"].toDouble(0.0);
-        
+
         // Boolean flags
         if (obj.contains("is_purchasable")) {
             item.isPurchasable = obj["is_purchasable"].toBool(true);
@@ -143,7 +163,7 @@ QVector<Item> ItemImporter::loadFromJson(const QString &jsonPath)
         } else {
             item.isPurchasable = true;
         }
-        
+
         if (obj.contains("is_sellable")) {
             item.isSellable = obj["is_sellable"].toBool(true);
         } else if (obj.contains("isSellable")) {
@@ -151,7 +171,7 @@ QVector<Item> ItemImporter::loadFromJson(const QString &jsonPath)
         } else {
             item.isSellable = true;
         }
-        
+
         if (obj.contains("is_craftable")) {
             item.isCraftable = obj["is_craftable"].toBool(false);
         } else if (obj.contains("isCraftable")) {
@@ -159,20 +179,20 @@ QVector<Item> ItemImporter::loadFromJson(const QString &jsonPath)
         } else {
             item.isCraftable = false;
         }
-        
+
         // Pricing group
         QString pricingGroupStr = obj["pricing_group"].toString();
         if (pricingGroupStr.isEmpty()) {
             pricingGroupStr = obj["pricingGroup"].toString("Base70");
         }
         item.pricingGroup = stringToPricingGroup(pricingGroupStr);
-        
+
         // Notes
         item.notes = obj["notes"].toString();
-        
+
         items.append(item);
     }
-    
+
     return items;
 }
 

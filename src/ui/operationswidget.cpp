@@ -39,14 +39,14 @@ void OperationsWidget::setupUi()
     // Material Movement (Core tab)
     m_subTabs->addTab(new MaterialMovementTab(m_manager, this), "Material Movement");
 
-    // Stub tabs - Maintenance
-    QWidget *maintenanceTab = new QWidget();
-    QVBoxLayout *maintLayout = new QVBoxLayout(maintenanceTab);
-    QLabel *maintLabel = new QLabel("Maintenance & Repairs - Coming Soon");
-    maintLabel->setAlignment(Qt::AlignCenter);
-    maintLabel->setStyleSheet("color: gray; font-size: 14px;");
-    maintLayout->addWidget(maintLabel);
-    m_subTabs->addTab(maintenanceTab, "Maintenance");
+    // Stub tabs - Maintenance: TODO future update
+    // QWidget *maintenanceTab = new QWidget();
+    // QVBoxLayout *maintLayout = new QVBoxLayout(maintenanceTab);
+    // QLabel *maintLabel = new QLabel("Maintenance & Repairs - Coming Soon");
+    // maintLabel->setAlignment(Qt::AlignCenter);
+    // maintLabel->setStyleSheet("color: gray; font-size: 14px;");
+    // maintLayout->addWidget(maintLabel);
+    // m_subTabs->addTab(maintenanceTab, "Maintenance");
 
     // Stub tabs - Production
     QWidget *productionTab = new QWidget();

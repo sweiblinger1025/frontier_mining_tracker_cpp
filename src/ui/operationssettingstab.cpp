@@ -53,15 +53,101 @@ void OperationsSettingsTab::setupUi()
     m_unitPreviewLabel->setWordWrap(true);
     unitLayout->addWidget(m_unitPreviewLabel);
 
-    // Example box showing conversions
-    QGroupBox *previewBox = new QGroupBox("Reference Conversions");
-    QFormLayout *previewLayout = new QFormLayout(previewBox);
-    previewLayout->addRow("Volume:", new QLabel("1 m³ = 1.308 yd³"));
-    previewLayout->addRow("Fuel:", new QLabel("1 L = 0.264 gal"));
-    previewLayout->addRow("Distance:", new QLabel("1 km = 0.621 mi"));
-    unitLayout->addWidget(previewBox);
-
     mainLayout->addWidget(unitGroup);
+
+    // === Cycle Times ===
+    QGroupBox *cycleGroup = new QGroupBox("Cycle Time Estimates");
+    QVBoxLayout *cycleLayout = new QVBoxLayout(cycleGroup);
+
+    QLabel *cycleDesc = new QLabel(
+        "Used to auto-calculate equipment hours from activity counts.\n"
+        "Adjust based on your typical operation distances and efficiency."
+        );
+    cycleDesc->setStyleSheet("color: gray;");
+    cycleDesc->setWordWrap(true);
+    cycleLayout->addWidget(cycleDesc);
+
+    QFormLayout *cycleFormLayout = new QFormLayout();
+
+    // Loader cycle time
+    m_loaderCycleTimeSpinBox = new QDoubleSpinBox();
+    m_loaderCycleTimeSpinBox->setRange(0.5, 10.0);
+    m_loaderCycleTimeSpinBox->setDecimals(1);
+    m_loaderCycleTimeSpinBox->setSuffix(" min");
+    m_loaderCycleTimeSpinBox->setToolTip("Time per bucket cycle: dig → swing → dump into truck");
+    cycleFormLayout->addRow("Loader/Excavator Cycle:", m_loaderCycleTimeSpinBox);
+
+    // Truck cycle time
+    m_truckCycleTimeSpinBox = new QDoubleSpinBox();
+    m_truckCycleTimeSpinBox->setRange(1.0, 30.0);
+    m_truckCycleTimeSpinBox->setDecimals(1);
+    m_truckCycleTimeSpinBox->setSuffix(" min");
+    m_truckCycleTimeSpinBox->setToolTip("Time per haul cycle: wait for load + haul + dump + return");
+    cycleFormLayout->addRow("Truck Haul Cycle:", m_truckCycleTimeSpinBox);
+
+    cycleLayout->addLayout(cycleFormLayout);
+
+    // Example calculation
+    m_cycleTimeExampleLabel = new QLabel();
+    m_cycleTimeExampleLabel->setStyleSheet("background-color: #f0f0f0; padding: 8px; border-radius: 4px;");
+    m_cycleTimeExampleLabel->setWordWrap(true);
+    cycleLayout->addWidget(m_cycleTimeExampleLabel);
+
+    // Connect spinboxes to update example
+    connect(m_loaderCycleTimeSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [this](double) {
+                double loaderTime = m_loaderCycleTimeSpinBox->value();
+                double truckTime = m_truckCycleTimeSpinBox->value();
+                double loaderHours = (50 * loaderTime) / 60.0;
+                double truckHours = (8 * truckTime) / 60.0;
+                m_cycleTimeExampleLabel->setText(
+                    QString("Example: 50 buckets × %1 min = %2 hrs | 8 dumps × %3 min = %4 hrs")
+                        .arg(loaderTime, 0, 'f', 1)
+                        .arg(loaderHours, 0, 'f', 2)
+                        .arg(truckTime, 0, 'f', 1)
+                        .arg(truckHours, 0, 'f', 2)
+                    );
+            });
+    connect(m_truckCycleTimeSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [this](double) {
+                double loaderTime = m_loaderCycleTimeSpinBox->value();
+                double truckTime = m_truckCycleTimeSpinBox->value();
+                double loaderHours = (50 * loaderTime) / 60.0;
+                double truckHours = (8 * truckTime) / 60.0;
+                m_cycleTimeExampleLabel->setText(
+                    QString("Example: 50 buckets × %1 min = %2 hrs | 8 dumps × %3 min = %4 hrs")
+                        .arg(loaderTime, 0, 'f', 1)
+                        .arg(loaderHours, 0, 'f', 2)
+                        .arg(truckTime, 0, 'f', 1)
+                        .arg(truckHours, 0, 'f', 2)
+                    );
+            });
+
+    mainLayout->addWidget(cycleGroup);
+
+    // === Fuel Price ===
+    QGroupBox *fuelGroup = new QGroupBox("Fuel Pricing");
+    QVBoxLayout *fuelLayout = new QVBoxLayout(fuelGroup);
+
+    QLabel *fuelDesc = new QLabel(
+        "Default price per liter used when generating fuel log entries."
+        );
+    fuelDesc->setStyleSheet("color: gray;");
+    fuelLayout->addWidget(fuelDesc);
+
+    QFormLayout *fuelFormLayout = new QFormLayout();
+
+    m_fuelPriceSpinBox = new QDoubleSpinBox();
+    m_fuelPriceSpinBox->setRange(0.01, 10.00);
+    m_fuelPriceSpinBox->setDecimals(2);
+    m_fuelPriceSpinBox->setPrefix("$");
+    m_fuelPriceSpinBox->setSuffix(" / L");
+    m_fuelPriceSpinBox->setValue(0.32);
+    fuelFormLayout->addRow("Fuel Price:", m_fuelPriceSpinBox);
+
+    fuelLayout->addLayout(fuelFormLayout);
+
+    mainLayout->addWidget(fuelGroup);
 
     // === Session Defaults ===
     QGroupBox *defaultsGroup = new QGroupBox("Session Defaults");
@@ -80,15 +166,6 @@ void OperationsSettingsTab::setupUi()
     defaultsLayout->addRow("", m_autoGenerateFuelLogCheckbox);
 
     mainLayout->addWidget(defaultsGroup);
-
-    // === Info ===
-    QGroupBox *infoGroup = new QGroupBox("Information");
-    QFormLayout *infoLayout = new QFormLayout(infoGroup);
-
-    infoLayout->addRow("Data Storage:", new QLabel("All values stored internally in metric (m³, L)"));
-    infoLayout->addRow("Conversion:", new QLabel("Display converted based on your preference"));
-
-    mainLayout->addWidget(infoGroup);
 
     // === Buttons ===
     QHBoxLayout *buttonLayout = new QHBoxLayout();
@@ -120,6 +197,16 @@ void OperationsSettingsTab::loadSettings()
     if (index >= 0) {
         m_unitSystemCombo->setCurrentIndex(index);
     }
+
+    // Cycle Times
+    m_loaderCycleTimeSpinBox->setValue(m_manager->loaderCycleTimeMinutes());
+    m_truckCycleTimeSpinBox->setValue(m_manager->truckCycleTimeMinutes());
+
+    // Trigger example update
+    emit m_loaderCycleTimeSpinBox->valueChanged(m_loaderCycleTimeSpinBox->value());
+
+    // Fuel Price
+    m_fuelPriceSpinBox->setValue(m_manager->fuelPricePerLiter());
 
     // Other settings
     QSettings settings("FrontierMining", "Tracker");
@@ -161,6 +248,13 @@ void OperationsSettingsTab::onSaveSettings()
     Frontier::UnitSystem system = static_cast<Frontier::UnitSystem>(systemVal);
     m_manager->setUnitSystem(system);
 
+    // Save cycle times
+    m_manager->setLoaderCycleTimeMinutes(m_loaderCycleTimeSpinBox->value());
+    m_manager->setTruckCycleTimeMinutes(m_truckCycleTimeSpinBox->value());
+
+    // Save fuel price
+    m_manager->setFuelPricePerLiter(m_fuelPriceSpinBox->value());
+
     // Save other settings
     QSettings settings("FrontierMining", "Tracker");
     settings.beginGroup("Operations");
@@ -172,13 +266,15 @@ void OperationsSettingsTab::onSaveSettings()
     settings.endGroup();
 
     QMessageBox::information(this, "Settings Saved",
-                             "Operations settings have been saved.\n\n"
-                             "Unit changes will apply to all Operations tabs.");
+                             "Operations settings have been saved.");
 }
 
 void OperationsSettingsTab::onResetDefaults()
 {
     m_unitSystemCombo->setCurrentIndex(0);  // Imperial
+    m_loaderCycleTimeSpinBox->setValue(1.5);
+    m_truckCycleTimeSpinBox->setValue(6.0);
+    m_fuelPriceSpinBox->setValue(0.32);
     m_defaultMapEdit->clear();
     m_autoEndSessionCheckbox->setChecked(true);
     m_autoGenerateFuelLogCheckbox->setChecked(false);
