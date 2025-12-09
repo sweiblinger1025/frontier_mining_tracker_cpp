@@ -6,6 +6,7 @@
 #include "datahubwidget.h"
 #include "additemdialog.h"
 #include "vehiclespecstab.h"
+#include "recipestab.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -18,6 +19,7 @@ DataHubWidget::DataHubWidget(Frontier::Database *database, QWidget *parent)
     , m_model(nullptr)
     , m_proxyModel(nullptr)
     , m_vehicleSpecsTab(nullptr)
+    , m_recipesTab(nullptr)
 {
     setupUi();
     loadCategories();
@@ -39,13 +41,18 @@ void DataHubWidget::setupUi()
     // Add tabs
     m_subTabs->addTab(createItemsTab(), "Items");
     
-    // Vehicle Specs tab (now functional!)
+    // Vehicle Specs tab
     m_vehicleSpecsTab = new VehicleSpecsTab(m_database, this);
     m_subTabs->addTab(m_vehicleSpecsTab, "Vehicle Specs");
     
-    // Placeholder tabs for future
+    // Placeholder for future
     m_subTabs->addTab(new QLabel("Factory Buildings - Coming Soon"), "Factory - Buildings");
-    m_subTabs->addTab(new QLabel("Recipes - Coming Soon"), "Recipes");
+    
+    // Recipes tab (now functional!)
+    m_recipesTab = new RecipesTab(m_database, this);
+    m_subTabs->addTab(m_recipesTab, "Recipes");
+    
+    // Placeholder for future
     m_subTabs->addTab(new QLabel("Locations - Coming Soon"), "Locations");
 
     mainLayout->addWidget(m_subTabs);
@@ -244,13 +251,16 @@ void DataHubWidget::loadItems()
         }
         row.append(craftableItem);
 
-        // Store item ID in first column for later retrieval
+        // Store item ID in first column
         row[0]->setData(item.id.value_or(-1), Qt::UserRole);
 
         m_model->appendRow(row);
     }
 
+    // Update item count
     m_itemCountLabel->setText(QString("Items: %1").arg(m_items.size()));
+
+    // Resize columns
     m_tableView->resizeColumnsToContents();
 }
 
@@ -262,6 +272,11 @@ void DataHubWidget::refreshData()
     // Also refresh Vehicle Specs tab
     if (m_vehicleSpecsTab) {
         m_vehicleSpecsTab->refreshData();
+    }
+    
+    // Also refresh Recipes tab
+    if (m_recipesTab) {
+        m_recipesTab->refreshData();
     }
 }
 

@@ -8,12 +8,11 @@
 #include "core/database.h"
 #include "core/operationsmanager.h"
 
-// Forward declarations
-class DataHubWidget;
-
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
+
+class DataHubWidget;
 
 class MainWindow : public QMainWindow
 {
@@ -26,6 +25,7 @@ public:
 private slots:
     void onImportItems();
     void onImportVehicles();
+    void onImportRecipes();
 
 private:
     Ui::MainWindow *ui;
@@ -33,22 +33,23 @@ private:
     // Database reference
     Frontier::Database *m_database;
 
-    // Operations manager (owns this)
+    // Operations manager
     Frontier::OperationsManager *m_operationsManager;
 
     // Tab widget
     QTabWidget *m_tabWidget;
 
-    // Keep reference to Data Hub for refreshing after imports
+    // Data Hub reference for refresh
     DataHubWidget *m_dataHubWidget;
 
     // Status bar widgets
     QLabel *m_dayLabel;
     QLabel *m_balanceLabel;
 
-    // Menu actions
+    // Import actions
     QAction *m_importItemsAction;
     QAction *m_importVehiclesAction;
+    QAction *m_importRecipesAction;
 };
 
 #endif // MAINWINDOW_H

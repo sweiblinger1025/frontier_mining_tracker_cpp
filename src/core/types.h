@@ -8,6 +8,7 @@
 
 #include <QString>
 #include <QDateTime>
+#include <QVector>
 #include <optional>
 
 namespace Frontier {
@@ -54,36 +55,30 @@ inline double calculateSellPrice(double buyPrice, PricingGroup group) {
 
 struct Item {
     std::optional<int> id;
-    QString code;                   // "100001"
-    QString name;                   // "Iron Ore"
-    
-    // Categories
-    QString categoryMain;           // "Ore", "Fuel", "Equipment"
-    QString categorySub;            // "Metal Ore", "Diesel", etc.
-    
-    // Pricing (internal = fractional for calculations, display = rounded for single items)
-    double buyPriceInternal = 0;    // Fractional buy price
-    double buyPriceDisplay = 0;     // Rounded buy price (for qty = 1)
-    double sellPriceInternal = 0;   // Fractional sell price (for qty > 1)
-    double sellPriceDisplay = 0;    // Rounded sell price (for qty = 1)
-    
-    // Item properties
+    QString code;           // "100001"
+    QString name;           // "Iron Ore"
+    QString categoryMain;   // "Materials"
+    QString categorySub;    // "Ores"
+    double buyPriceInternal = 0;    // Internal fractional price
+    double buyPriceDisplay = 0;     // Rounded display price
+    double sellPriceInternal = 0;   // Fractional (for qty > 1)
+    double sellPriceDisplay = 0;    // Rounded (for qty = 1)
     double weight = 0;
-    bool isPurchasable = true;      // Can buy from shop
-    bool isSellable = true;         // Can sell to shop
-    bool isCraftable = false;       // Can be crafted
-    
     PricingGroup pricingGroup = PricingGroup::Base70;
+    bool isPurchasable = true;
+    bool isSellable = true;
+    bool isCraftable = false;
     QString notes;
-    
-    // Helper methods
+
+    // For display
     QString displayCategory() const {
-        if (categorySub.isEmpty()) {
+        if (categorySub.isEmpty() || categorySub.compare("None", Qt::CaseInsensitive) == 0) {
             return categoryMain;
         }
         return categoryMain + " - " + categorySub;
     }
-    
+
+    // Calculate ROI percentage (sell - buy) / buy * 100
     double roiPercent() const {
         if (buyPriceInternal <= 0) return 0;
         return ((sellPriceInternal - buyPriceInternal) / buyPriceInternal) * 100.0;
@@ -95,14 +90,14 @@ struct Transaction {
     QDate date;
     TransactionType type;
     AccountType account;
-    QString item;                   // Item name
-    QString category;               // Item category
-    int quantity = 1;
-    double unitPrice = 0;
-    double totalAmount = 0;
+    QString item;
+    QString category;
+    int quantity;
+    double unitPrice;
+    double totalAmount;
     QString notes;
-    
-    // Helper method - determines if this is income (sales) vs expense
+
+    // Helper to check if this is income (Sale) vs expense (Purchase/Fuel)
     bool isIncome() const {
         return type == TransactionType::Sale;
     }
@@ -169,6 +164,36 @@ struct MovementEquipmentUsage {
 
     // Computed at runtime, not stored in DB
     double volumeM3 = 0;
+};
+
+// === Recipe Types ===
+
+struct Workbench {
+    std::optional<int> id;
+    QString name;                   // "CNC Cutter", "Concrete Mixer", etc.
+};
+
+struct RecipeIngredient {
+    std::optional<int> id;
+    int recipeId = 0;
+    QString itemName;               // Input item name
+    int quantity = 1;
+};
+
+struct Recipe {
+    std::optional<int> id;
+    int workbenchId = 0;
+    QString workbenchName;          // For display (not stored, loaded via join)
+    QString outputItem;             // Output item name
+    int outputQty = 1;
+    QString notes;                  // e.g., "Rough Concrete", "Quest item"
+    QVector<RecipeIngredient> ingredients;
+
+    // Computed at runtime for cost analysis
+    double inputCost = 0;
+    double outputValue = 0;
+    double profit = 0;
+    double marginPercent = 0;
 };
 
 } // namespace Frontier

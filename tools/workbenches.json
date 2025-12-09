@@ -1,0 +1,1037 @@
+{
+  "Oil Derrick": [
+    {
+      "output": "Water",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Empty Barrel", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Oil",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Empty Barrel", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Fuel",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Empty Barrel", "qty": 1 },
+        { "item": "Oil", "qty": 1 }
+      ]
+    }
+  ],
+
+  "Wood Workbench": [
+    {
+      "output": "Wood Beam",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Tree Logs", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Wood Planks",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Tree Logs", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Wood Sheet",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Tree Logs", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Wood Block",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Wood Beam", "qty": 5 }
+      ]
+    },
+    {
+      "output": "Wood Floor",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Wood Beam", "qty": 2 },
+        { "item": "Wood Planks", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Wood Wall",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Wood Beam", "qty": 2 },
+        { "item": "Wood Planks", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Wood L",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Wood Beam", "qty": 1 },
+        { "item": "Wood Planks", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Wood R",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Wood Beam", "qty": 1 },
+        { "item": "Wood Planks", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Wood Roof",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Wood Beam", "qty": 2 },
+        { "item": "Wood Planks", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Wood Roof Corner",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Wood Beam", "qty": 2 },
+        { "item": "Wood Planks", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Wood Roof Corner Inv",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Wood Beam", "qty": 2 },
+        { "item": "Wood Planks", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Wood Wall Inv L",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Wood Beam", "qty": 1 },
+        { "item": "Wood Planks", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Wood Wall Inv R",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Wood Beam", "qty": 1 },
+        { "item": "Wood Planks", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Watchtower",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Wood Beam", "qty": 60 },
+        { "item": "Wood Planks", "qty": 45 },
+        { "item": "Wood Sheet", "qty": 20 }
+      ],
+      "notes": "Quest item"
+    }
+  ],
+
+  "Small Washplant": [
+    {
+      "output": "Gold Ore",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Paydirt", "qty": 5 }
+      ],
+      "notes": "Extraction"
+    },
+    {
+      "output": "Diamond Ore",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Diamond Ore", "qty": 1 }
+      ],
+      "notes": "Purification"
+    },
+    {
+      "output": "Ruby Ore",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Ruby Ore", "qty": 1 }
+      ],
+      "notes": "Purification"
+    },
+    {
+      "output": "Cement",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Gravel", "qty": 10 }
+      ]
+    }
+  ],
+
+  "Concrete Mixer": [
+    {
+      "output": "Concrete Block",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 4 },
+        { "item": "Cement", "qty": 8 }
+      ],
+      "notes": "Rough Concrete"
+    },
+    {
+      "output": "Chamfer Concrete Block",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 4 },
+        { "item": "Cement", "qty": 8 }
+      ],
+      "notes": "Rough Concrete"
+    },
+    {
+      "output": "Concrete Floor",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 4 }
+      ],
+      "notes": "Rough Concrete"
+    },
+    {
+      "output": "Concrete Wall",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 4 }
+      ],
+      "notes": "Rough Concrete"
+    },
+    {
+      "output": "Concrete Cut Wall",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 2 }
+      ],
+      "notes": "Rough Concrete"
+    },
+    {
+      "output": "Concrete Cut Wall Inv",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 2 }
+      ],
+      "notes": "Rough Concrete"
+    },
+    {
+      "output": "Concrete Ramp 1/4",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 3 },
+        { "item": "Cement", "qty": 7 }
+      ],
+      "notes": "Rough Concrete"
+    },
+    {
+      "output": "Concrete Ramp 2/4",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 6 }
+      ],
+      "notes": "Rough Concrete"
+    },
+    {
+      "output": "Concrete Ramp 3/4",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 5 }
+      ],
+      "notes": "Rough Concrete"
+    },
+    {
+      "output": "Concrete Ramp 4/4",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 4 }
+      ],
+      "notes": "Rough Concrete"
+    },
+    {
+      "output": "Concrete Roof",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 4 }
+      ],
+      "notes": "Rough Concrete"
+    },
+    {
+      "output": "Concrete Roof Corner",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 4 }
+      ],
+      "notes": "Rough Concrete"
+    },
+    {
+      "output": "Concrete Roof Corner Inv",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 4 }
+      ],
+      "notes": "Rough Concrete"
+    },
+
+    {
+      "output": "Concrete Block",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 4 },
+        { "item": "Cement", "qty": 8 }
+      ],
+      "notes": "Standard Concrete"
+    },
+    {
+      "output": "Chamfer Concrete Block",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 4 },
+        { "item": "Cement", "qty": 8 }
+      ],
+      "notes": "Standard Concrete"
+    },
+    {
+      "output": "Concrete Floor",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 4 }
+      ],
+      "notes": "Standard Concrete"
+    },
+    {
+      "output": "Concrete Wall",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 4 }
+      ],
+      "notes": "Standard Concrete"
+    },
+    {
+      "output": "Concrete Cut Wall",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 2 }
+      ],
+      "notes": "Standard Concrete"
+    },
+    {
+      "output": "Concrete Cut Wall Inv",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 2 }
+      ],
+      "notes": "Standard Concrete"
+    },
+    {
+      "output": "Concrete Ramp 1/4",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 3 },
+        { "item": "Cement", "qty": 7 }
+      ],
+      "notes": "Standard Concrete"
+    },
+    {
+      "output": "Concrete Ramp 2/4",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 6 }
+      ],
+      "notes": "Standard Concrete"
+    },
+    {
+      "output": "Concrete Ramp 3/4",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 5 }
+      ],
+      "notes": "Standard Concrete"
+    },
+    {
+      "output": "Concrete Ramp 4/4",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 4 }
+      ],
+      "notes": "Standard Concrete"
+    },
+    {
+      "output": "Concrete Roof",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 4 }
+      ],
+      "notes": "Standard Concrete"
+    },
+    {
+      "output": "Concrete Roof Corner",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 4 }
+      ],
+      "notes": "Standard Concrete"
+    },
+    {
+      "output": "Concrete Roof Corner Inv",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 4 }
+      ],
+      "notes": "Standard Concrete"
+    },
+
+    {
+      "output": "Concrete Block",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 4 },
+        { "item": "Cement", "qty": 8 }
+      ],
+      "notes": "Polished Concrete"
+    },
+    {
+      "output": "Chamfer Concrete Block",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 4 },
+        { "item": "Cement", "qty": 8 }
+      ],
+      "notes": "Polished Concrete"
+    },
+    {
+      "output": "Concrete Floor",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 4 }
+      ],
+      "notes": "Polished Concrete"
+    },
+    {
+      "output": "Concrete Wall",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 4 }
+      ],
+      "notes": "Polished Concrete"
+    },
+    {
+      "output": "Concrete Cut Wall",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 2 }
+      ],
+      "notes": "Polished Concrete"
+    },
+    {
+      "output": "Concrete Cut Wall Inv",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 2 }
+      ],
+      "notes": "Polished Concrete"
+    },
+    {
+      "output": "Concrete Ramp 1/4",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 3 },
+        { "item": "Cement", "qty": 7 }
+      ],
+      "notes": "Polished Concrete"
+    },
+    {
+      "output": "Concrete Ramp 2/4",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 6 }
+      ],
+      "notes": "Polished Concrete"
+    },
+    {
+      "output": "Concrete Ramp 3/4",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 5 }
+      ],
+      "notes": "Polished Concrete"
+    },
+    {
+      "output": "Concrete Ramp 4/4",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 4 }
+      ],
+      "notes": "Polished Concrete"
+    },
+    {
+      "output": "Concrete Roof",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 4 }
+      ],
+      "notes": "Polished Concrete"
+    },
+    {
+      "output": "Concrete Roof Corner",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 4 }
+      ],
+      "notes": "Polished Concrete"
+    },
+    {
+      "output": "Concrete Roof Corner Inv",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Water", "qty": 2 },
+        { "item": "Cement", "qty": 4 }
+      ],
+      "notes": "Polished Concrete"
+    }
+  ],
+
+  "Ore Smelter": [
+    {
+      "output": "Iron Bar",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Iron Ore", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Copper Bar",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Copper Ore", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Aluminium Bar",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Aluminium Ore", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Silver Bar",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Silver Ore", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Gold Bar",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Gold Ore", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Silicon Bar",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Silicon Ore", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Lithium Bar",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Lithium Ore", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Steel Bar",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Iron Bar", "qty": 1 },
+        { "item": "Coal", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Plastics",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Oil", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Rubber",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Silicon Bar", "qty": 1 },
+        { "item": "Coal", "qty": 1 }
+      ]
+    }
+  ],
+
+  "Steel Roller": [
+    {
+      "output": "Steel Beam",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Bar", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Steel Plate",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Bar", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Steel Rod",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Bar", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Empty Barrel",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Iron Bar", "qty": 1 }
+      ]
+    }
+  ],
+
+  "Steel Press": [
+    {
+      "output": "Wearplate",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Bar", "qty": 2 }
+      ]
+    }
+  ],
+
+  "CNC Cutter": [
+    {
+      "output": "Steel Mesh Ceiling",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Rod", "qty": 4 },
+        { "item": "Bolts & Nuts", "qty": 4 }
+      ]
+    },
+    {
+      "output": "Steel Mesh Roof",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Rod", "qty": 4 },
+        { "item": "Bolts & Nuts", "qty": 4 }
+      ]
+    },
+    {
+      "output": "Steel Mesh Wall",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Rod", "qty": 4 },
+        { "item": "Bolts & Nuts", "qty": 4 }
+      ]
+    },
+    {
+      "output": "Steel Mesh Wall L",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Rod", "qty": 2 },
+        { "item": "Bolts & Nuts", "qty": 3 }
+      ]
+    },
+    {
+      "output": "Steel Mesh Wall R",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Rod", "qty": 2 },
+        { "item": "Bolts & Nuts", "qty": 3 }
+      ]
+    },
+    {
+      "output": "Steel Block",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Beam", "qty": 8 },
+        { "item": "Bolts & Nuts", "qty": 4 }
+      ]
+    },
+    {
+      "output": "Steel Ceiling",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Beam", "qty": 4 },
+        { "item": "Steel Plate", "qty": 4 },
+        { "item": "Bolts & Nuts", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Steel Floor",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Beam", "qty": 4 },
+        { "item": "Steel Plate", "qty": 4 },
+        { "item": "Bolts & Nuts", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Small Door",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Beam", "qty": 2 },
+        { "item": "Steel Plate", "qty": 3 }
+      ]
+    },
+    {
+      "output": "Massive Door",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Beam", "qty": 2 },
+        { "item": "Steel Plate", "qty": 6 },
+        { "item": "Bolts & Nuts", "qty": 8 }
+      ]
+    },
+    {
+      "output": "Steel Staircase",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Beam", "qty": 2 },
+        { "item": "Steel Plate", "qty": 3 },
+        { "item": "Steel Rod", "qty": 2 },
+        { "item": "Bolts & Nuts", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Steel Railing",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Rod", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Steel Wall",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Beam", "qty": 4 },
+        { "item": "Steel Plate", "qty": 4 },
+        { "item": "Bolts & Nuts", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Steel Wall Cut",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Beam", "qty": 2 },
+        { "item": "Steel Plate", "qty": 2 },
+        { "item": "Bolts & Nuts", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Steel Wall Cut Inv",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Beam", "qty": 2 },
+        { "item": "Steel Plate", "qty": 2 },
+        { "item": "Bolts & Nuts", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Steel Roof",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Beam", "qty": 4 },
+        { "item": "Steel Plate", "qty": 4 },
+        { "item": "Bolts & Nuts", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Steel Roof Corner",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Beam", "qty": 4 },
+        { "item": "Steel Plate", "qty": 4 },
+        { "item": "Bolts & Nuts", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Steel Roof Corner Inv",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Beam", "qty": 4 },
+        { "item": "Steel Plate", "qty": 4 },
+        { "item": "Bolts & Nuts", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Steel Window",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Beam", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Cell Tower",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Beam", "qty": 40 },
+        { "item": "Steel Plate", "qty": 10 },
+        { "item": "Steel Rod", "qty": 20 },
+        { "item": "Bolts & Nuts", "qty": 10 },
+        { "item": "Electronic Parts", "qty": 30 }
+      ],
+      "notes": "Quest item"
+    }
+  ],
+
+  "CNC Mill": [
+    {
+      "output": "Built Battery",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Plastics", "qty": 1 },
+        { "item": "Lithium", "qty": 3 }
+      ]
+    },
+    {
+      "output": "Built ECU",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Electronic Parts", "qty": 2 },
+        { "item": "Aluminum", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Built Filter Kit",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Plastics", "qty": 1 },
+        { "item": "Steel Bar", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Built Hydraulic Hose",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Rubber", "qty": 2 },
+        { "item": "Steel Bar", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Built Hydraulic Pump",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Bar", "qty": 3 },
+        { "item": "Large Drive Axle", "qty": 1 },
+        { "item": "Gear", "qty": 2 },
+        { "item": "Bearing", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Built Injector",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Rubber", "qty": 2 },
+        { "item": "Steel Bar", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Built Turbo",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Bar", "qty": 5 },
+        { "item": "Aluminum", "qty": 5 },
+        { "item": "Steel Rod", "qty": 1 },
+        { "item": "Bearing", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Built Wearplate",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Wearplate", "qty": 1 },
+        { "item": "Bolts & Nuts", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Built Ram",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Oil", "qty": 1 },
+        { "item": "Steel Bar", "qty": 4 },
+        { "item": "Steel Rod", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Built Sensor",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Plastics", "qty": 1 },
+        { "item": "Steel Bar", "qty": 1 },
+        { "item": "Electronic Parts", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Engine Head",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Iron", "qty": 20 }
+      ]
+    },
+    {
+      "output": "Small gearbox",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Bar", "qty": 3 },
+        { "item": "Gear", "qty": 4 },
+        { "item": "Aluminum", "qty": 4 }
+      ]
+    },
+    {
+      "output": "Electric Motor",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Electronic Parts", "qty": 1 },
+        { "item": "Steel Bar", "qty": 5 },
+        { "item": "Gear", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Gearbox",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Gear", "qty": 2 },
+        { "item": "Aluminum", "qty": 3 }
+      ]
+    },
+    {
+      "output": "Stepper Motor",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Electronic Parts", "qty": 2 },
+        { "item": "Steel Bar", "qty": 1 },
+        { "item": "Gear", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Cam Axle",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Bar", "qty": 1 },
+        { "item": "Steel Rod", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Piston Rod",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Bar", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Cable",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Rubber", "qty": 2 },
+        { "item": "Copper", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Bearing",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Bar", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Gear",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Bar", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Large Drive Axle",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Rod", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Chain",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Bar", "qty": 2 }
+      ]
+    },
+    {
+      "output": "Gear Axle",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Gear", "qty": 1 },
+        { "item": "Steel Rod", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Bolts & Nuts",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Steel Bar", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Electronic Parts",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Plastics", "qty": 1 },
+        { "item": "Copper", "qty": 1 }
+      ]
+    },
+    {
+      "output": "Radio Array",
+      "output_qty": 1,
+      "inputs": [
+        { "item": "Electronic Parts", "qty": 210 },
+        { "item": "Steel Beam", "qty": 300 },
+        { "item": "Steel Rod", "qty": 40 },
+        { "item": "Steel Plate", "qty": 75 }
+      ],
+      "notes": "Quest item"
+    }
+  ]
+}

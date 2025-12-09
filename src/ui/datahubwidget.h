@@ -18,8 +18,9 @@
 
 #include "core/database.h"
 
-// Forward declaration
+// Forward declarations
 class VehicleSpecsTab;
+class RecipesTab;
 
 class DataHubWidget : public QWidget
 {
@@ -53,6 +54,7 @@ private:
 
     // Subtab widgets
     VehicleSpecsTab *m_vehicleSpecsTab;
+    RecipesTab *m_recipesTab;
 
     // Items tab UI elements
     QComboBox *m_categoryFilter;

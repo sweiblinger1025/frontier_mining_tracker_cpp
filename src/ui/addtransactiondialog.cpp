@@ -160,11 +160,14 @@ void AddTransactionDialog::onTypeChanged(int index)
         Frontier::TransactionType type = static_cast<Frontier::TransactionType>(
             m_typeCombo->currentData().toInt());
 
+        // Use display price unless it's 0 (items < $1 round to 0)
+        double priceToShow = 0;
         if (type == Frontier::TransactionType::Sale) {
-            m_unitPriceSpin->setValue(m_selectedSellDisplay);
+            priceToShow = (m_selectedSellDisplay > 0) ? m_selectedSellDisplay : m_selectedSellInternal;
         } else {
-            m_unitPriceSpin->setValue(m_selectedBuyDisplay);
+            priceToShow = (m_selectedBuyDisplay > 0) ? m_selectedBuyDisplay : m_selectedBuyInternal;
         }
+        m_unitPriceSpin->setValue(priceToShow);
     }
 
     calculateTotal();
@@ -198,15 +201,19 @@ void AddTransactionDialog::onItemChanged(int index)
                     m_categoryCombo->setCurrentText(category);
                 }
 
-                // Set unit price based on transaction type (use display price)
+                // Set unit price based on transaction type
+                // Use display price unless it's 0 (items < $1 round to 0)
+                // In that case, use internal price for accurate display
                 Frontier::TransactionType type = static_cast<Frontier::TransactionType>(
                     m_typeCombo->currentData().toInt());
 
+                double priceToShow = 0;
                 if (type == Frontier::TransactionType::Sale) {
-                    m_unitPriceSpin->setValue(m_selectedSellDisplay);
+                    priceToShow = (m_selectedSellDisplay > 0) ? m_selectedSellDisplay : m_selectedSellInternal;
                 } else {
-                    m_unitPriceSpin->setValue(m_selectedBuyDisplay);
+                    priceToShow = (m_selectedBuyDisplay > 0) ? m_selectedBuyDisplay : m_selectedBuyInternal;
                 }
+                m_unitPriceSpin->setValue(priceToShow);
                 break;
             }
         }

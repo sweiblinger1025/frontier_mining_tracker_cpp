@@ -185,7 +185,7 @@ void FuelLogWidget::loadFuelLog()
 
         // Fuel amount (converted to display units)
         double displayFuel = UC::fuelToDisplay(entry.liters, units);
-        QStandardItem *fuelItem = new QStandardItem(QString::number(displayFuel, 'f', 1));
+        QStandardItem *fuelItem = new QStandardItem(QString::number(displayFuel, 'f', 0));
         fuelItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
         row << fuelItem;
 
@@ -198,7 +198,7 @@ void FuelLogWidget::loadFuelLog()
 
         // Total cost
         QStandardItem *costItem = new QStandardItem(
-            entry.totalCost > 0 ? QString("$%1").arg(entry.totalCost, 0, 'f', 2) : "-"
+            entry.totalCost > 0 ? QString("$%1").arg(entry.totalCost, 0, 'f', 0) : "-"
             );
         costItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
         costItem->setForeground(Qt::darkGreen);
@@ -246,9 +246,9 @@ void FuelLogWidget::updateSummary()
 
     m_entryCountLabel->setText(QString("Entries: %1").arg(entryCount));
     m_totalFuelLabel->setText(QString("Total Fuel: %1 %2")
-                                  .arg(displayFuel, 0, 'f', 1)
+                                  .arg(displayFuel, 0, 'f', 0)
                                   .arg(UC::fuelUnitLabel(units)));
-    m_totalCostLabel->setText(QString("Total Cost: $%1").arg(totalCost, 0, 'f', 2));
+    m_totalCostLabel->setText(QString("Total Cost: $%1").arg(totalCost, 0, 'f', 0));
 }
 
 void FuelLogWidget::onRefreshClicked()

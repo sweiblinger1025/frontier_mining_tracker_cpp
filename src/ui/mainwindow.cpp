@@ -3,6 +3,7 @@
 #include "./ui_mainwindow.h"
 #include "core/itemimporter.h"
 #include "core/vehicleimporter.h"
+#include "core/recipeimporter.h"
 
 // Project headers
 #include "dashboardwidget.h"
@@ -20,14 +21,12 @@
 #include <QStatusBar>
 #include <QFileDialog>
 #include <QMessageBox>
-#include <QDir>
 
 MainWindow::MainWindow(Frontier::Database *database, QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , m_database(database)
-    , m_operationsManager(nullptr)
-    , m_dataHubWidget(nullptr)
+    , m_operationsManager(new Frontier::OperationsManager(database, this))
 {
     ui->setupUi(this);
 
@@ -36,18 +35,15 @@ MainWindow::MainWindow(Frontier::Database *database, QWidget *parent)
     setMinimumSize(1024, 700);
     resize(1280, 800);
 
-    // Create Operations Manager
-    m_operationsManager = new Frontier::OperationsManager(m_database, this);
-
     // === Create Tab Widget ===
     m_tabWidget = new QTabWidget(this);
     setCentralWidget(m_tabWidget);
 
-    // Create tab widgets
+    // Create tab widgets - pass database to DataHub
     DashboardWidget *dashboardWidget = new DashboardWidget(this);
     FinanceWidget *financeWidget = new FinanceWidget(m_database, this);
     OperationsWidget *operationsWidget = new OperationsWidget(m_operationsManager, this);
-    m_dataHubWidget = new DataHubWidget(m_database, this);  // Store reference
+    m_dataHubWidget = new DataHubWidget(m_database, this);
     AuditorWidget *auditorWidget = new AuditorWidget(m_database, this);
 
     // Add tabs with icons
@@ -89,6 +85,12 @@ MainWindow::MainWindow(Frontier::Database *database, QWidget *parent)
     connect(m_importVehiclesAction, &QAction::triggered,
             this, &MainWindow::onImportVehicles);
     importMenu->addAction(m_importVehiclesAction);
+
+    m_importRecipesAction = new QAction("&Recipes...", this);
+    m_importRecipesAction->setStatusTip("Import recipes/workbenches from JSON file");
+    connect(m_importRecipesAction, &QAction::triggered,
+            this, &MainWindow::onImportRecipes);
+    importMenu->addAction(m_importRecipesAction);
 
     fileMenu->addSeparator();
 
@@ -162,7 +164,7 @@ void MainWindow::onImportItems()
 
     QString jsonPath = QFileDialog::getOpenFileName(
         this,
-        "Select Item Data File",
+        "Select Items Data File",
         startDir,
         "JSON Files (*.json);;All Files (*)"
         );
@@ -177,7 +179,7 @@ void MainWindow::onImportItems()
         "Import Items",
         "Do you want to replace all existing items?\n\n"
         "Yes = Clear existing and import new\n"
-        "No = Add to existing items",
+        "No = Merge with existing (update if name exists)",
         QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel
         );
 
@@ -199,12 +201,10 @@ void MainWindow::onImportItems()
             QString("Successfully imported %1 items.").arg(count)
             );
 
-        statusBar()->showMessage(QString("Imported %1 items").arg(count), 5000);
+        // Refresh Data Hub
+        m_dataHubWidget->refreshData();
 
-        // Refresh Data Hub to show new items
-        if (m_dataHubWidget) {
-            m_dataHubWidget->refreshData();
-        }
+        statusBar()->showMessage(QString("Imported %1 items").arg(count), 5000);
     } else if (count == 0) {
         QMessageBox::warning(
             this,
@@ -268,12 +268,10 @@ void MainWindow::onImportVehicles()
             QString("Successfully imported %1 vehicles.").arg(count)
             );
 
-        statusBar()->showMessage(QString("Imported %1 vehicles").arg(count), 5000);
+        // Refresh Data Hub
+        m_dataHubWidget->refreshData();
 
-        // Refresh Data Hub to show new vehicles
-        if (m_dataHubWidget) {
-            m_dataHubWidget->refreshData();
-        }
+        statusBar()->showMessage(QString("Imported %1 vehicles").arg(count), 5000);
     } else if (count == 0) {
         QMessageBox::warning(
             this,
@@ -286,6 +284,72 @@ void MainWindow::onImportVehicles()
             "Import Failed",
             "Could not import vehicles from the selected file.\n\n"
             "Please ensure the file is a valid vehicles JSON file."
+            );
+    }
+}
+
+void MainWindow::onImportRecipes()
+{
+    // Start in the application's data directory if it exists
+    QString startDir = QCoreApplication::applicationDirPath() + "/data";
+    if (!QDir(startDir).exists()) {
+        startDir = QDir::homePath();
+    }
+
+    QString jsonPath = QFileDialog::getOpenFileName(
+        this,
+        "Select Workbenches/Recipes File",
+        startDir,
+        "JSON Files (*.json);;All Files (*)"
+        );
+
+    if (jsonPath.isEmpty()) {
+        return;  // User cancelled
+    }
+
+    // Confirm import (recipes are always replaced)
+    QMessageBox::StandardButton reply = QMessageBox::question(
+        this,
+        "Import Recipes",
+        "This will replace all existing recipes and workbenches.\n\n"
+        "Continue?",
+        QMessageBox::Yes | QMessageBox::No
+        );
+
+    if (reply != QMessageBox::Yes) {
+        return;
+    }
+
+    // Perform import
+    RecipeImporter importer(m_database);
+    bool success = importer.importFromJson(jsonPath);
+
+    if (success) {
+        QMessageBox::information(
+            this,
+            "Import Complete",
+            QString("Successfully imported:\n"
+                    "• %1 workbenches\n"
+                    "• %2 recipes")
+                .arg(importer.workbenchesImported())
+                .arg(importer.recipesImported())
+            );
+
+        // Refresh Data Hub to show new recipes
+        m_dataHubWidget->refreshData();
+
+        statusBar()->showMessage(
+            QString("Imported %1 recipes from %2 workbenches")
+                .arg(importer.recipesImported())
+                .arg(importer.workbenchesImported()),
+            5000
+            );
+    } else {
+        QMessageBox::critical(
+            this,
+            "Import Failed",
+            QString("Could not import recipes.\n\nError: %1")
+                .arg(importer.lastError())
             );
     }
 }

@@ -26,15 +26,10 @@ public:
     explicit Database(QObject *parent = nullptr);
     ~Database();
 
-    // Database connection
-    bool connect(const QString &dbPath);
-    bool initialize(const QString &dbPath);  // Alias for connect + createTables
+    bool initialize(const QString &dbPath);
     void close();
     bool isOpen() const;
     QString lastError() const;
-
-    // Table creation (public for initial setup)
-    bool createTables();
 
     // === Item CRUD ===
     bool addItem(const Item &item);
@@ -43,8 +38,6 @@ public:
     std::optional<Item> getItemByName(const QString &name);
     QVector<Item> getAllItems();
     QVector<QString> getAllCategories();
-    QVector<QString> getAllMainCategories();
-    QVector<QString> getSubCategoriesFor(const QString &mainCategory);
     QVector<Item> getItemsByCategory(const QString &category);
     bool updateItem(const Item &item);
     bool deleteItem(int id);
@@ -87,8 +80,33 @@ public:
     bool deleteEquipmentUsage(int id);
     bool deleteEquipmentUsageForSession(int sessionId);
 
+    // === Workbench CRUD ===
+    int addWorkbench(const Workbench &workbench);
+    std::optional<Workbench> getWorkbench(int id);
+    std::optional<Workbench> getWorkbenchByName(const QString &name);
+    QVector<Workbench> getAllWorkbenches();
+    bool deleteWorkbench(int id);
+    bool clearAllWorkbenches();
+
+    // === Recipe CRUD ===
+    int addRecipe(const Recipe &recipe);
+    std::optional<Recipe> getRecipe(int id);
+    QVector<Recipe> getAllRecipes();
+    QVector<Recipe> getRecipesByWorkbench(int workbenchId);
+    QVector<Recipe> getRecipesByWorkbenchName(const QString &workbenchName);
+    QVector<Recipe> getRecipesForOutput(const QString &outputItem);
+    bool deleteRecipe(int id);
+    bool clearAllRecipes();
+
+    // === Recipe Ingredient CRUD ===
+    bool addRecipeIngredient(const RecipeIngredient &ingredient);
+    QVector<RecipeIngredient> getIngredientsForRecipe(int recipeId);
+    bool deleteIngredientsForRecipe(int recipeId);
+
 private:
+    bool createTables();
     bool createVehiclesTable();
+    bool createRecipeTables();
 
     QString m_connectionName;
     QString m_lastError;

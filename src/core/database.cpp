@@ -8,6 +8,7 @@
 #include <QDebug>
 #include <QSqlError>
 #include <QUuid>
+#include <cmath>
 
 namespace Frontier {
 
@@ -23,31 +24,22 @@ Database::~Database()
     close();
 }
 
-bool Database::connect(const QString &dbPath)
+bool Database::initialize(const QString &dbPath)
 {
     QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", m_connectionName);
     db.setDatabaseName(dbPath);
 
     if (!db.open()) {
-        m_lastError = db.lastError().text();
-        qWarning() << "Failed to open database:" << m_lastError;
+        qWarning() << "Failed to open database:" << db.lastError().text();
         return false;
     }
 
-    return true;
-}
-
-bool Database::initialize(const QString &dbPath)
-{
-    if (!connect(dbPath)) {
-        return false;
-    }
-    
+    // Create all tables
     if (!createTables()) {
-        m_lastError = "Failed to create tables";
+        qWarning() << "Failed to create tables";
         return false;
     }
-    
+
     return true;
 }
 
@@ -81,24 +73,18 @@ bool Database::createTables()
     if (!query.exec(R"(
         CREATE TABLE IF NOT EXISTS items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            code TEXT UNIQUE,
+            code TEXT UNIQUE NOT NULL,
             name TEXT NOT NULL,
-            category_main TEXT,
-            category_sub TEXT,
-            buy_price_internal REAL DEFAULT 0,
-            buy_price_display REAL DEFAULT 0,
+            category TEXT,
+            buy_price REAL DEFAULT 0,
             sell_price_internal REAL DEFAULT 0,
             sell_price_display REAL DEFAULT 0,
             weight REAL DEFAULT 0,
-            is_purchasable INTEGER DEFAULT 1,
-            is_sellable INTEGER DEFAULT 1,
-            is_craftable INTEGER DEFAULT 0,
             pricing_group TEXT DEFAULT 'Base70',
             notes TEXT
         )
     )")) {
-        m_lastError = query.lastError().text();
-        qWarning() << "Failed to create items table:" << m_lastError;
+        qWarning() << "Failed to create items table:" << query.lastError().text();
         return false;
     }
 
@@ -109,7 +95,7 @@ bool Database::createTables()
             date TEXT NOT NULL,
             type TEXT NOT NULL,
             account TEXT NOT NULL,
-            item TEXT,
+            item_name TEXT,
             category TEXT,
             quantity INTEGER DEFAULT 1,
             unit_price REAL DEFAULT 0,
@@ -117,8 +103,7 @@ bool Database::createTables()
             notes TEXT
         )
     )")) {
-        m_lastError = query.lastError().text();
-        qWarning() << "Failed to create transactions table:" << m_lastError;
+        qWarning() << "Failed to create transactions table:" << query.lastError().text();
         return false;
     }
 
@@ -129,6 +114,11 @@ bool Database::createTables()
 
     // Operations tables
     if (!createOperationsTables()) {
+        return false;
+    }
+
+    // Recipe tables
+    if (!createRecipeTables()) {
         return false;
     }
 
@@ -155,8 +145,7 @@ bool Database::createVehiclesTable()
             notes TEXT
         )
     )")) {
-        m_lastError = query.lastError().text();
-        qWarning() << "Failed to create vehicles table:" << m_lastError;
+        qWarning() << "Failed to create vehicles table:" << query.lastError().text();
         return false;
     }
 
@@ -183,8 +172,7 @@ bool Database::createOperationsTables()
             FOREIGN KEY (equipment_id) REFERENCES vehicles(id)
         )
     )")) {
-        m_lastError = query.lastError().text();
-        qWarning() << "Failed to create fuel_log table:" << m_lastError;
+        qWarning() << "Failed to create fuel_log table:" << query.lastError().text();
         return false;
     }
 
@@ -198,8 +186,7 @@ bool Database::createOperationsTables()
             notes TEXT
         )
     )")) {
-        m_lastError = query.lastError().text();
-        qWarning() << "Failed to create movement_sessions table:" << m_lastError;
+        qWarning() << "Failed to create movement_sessions table:" << query.lastError().text();
         return false;
     }
 
@@ -219,8 +206,7 @@ bool Database::createOperationsTables()
             FOREIGN KEY (equipment_id) REFERENCES vehicles(id)
         )
     )")) {
-        m_lastError = query.lastError().text();
-        qWarning() << "Failed to create movement_equipment_usage table:" << m_lastError;
+        qWarning() << "Failed to create movement_equipment_usage table:" << query.lastError().text();
         return false;
     }
 
@@ -237,30 +223,19 @@ bool Database::addItem(const Item &item)
     QSqlQuery query(db);
 
     query.prepare(R"(
-        INSERT INTO items (code, name, category_main, category_sub,
-                          buy_price_internal, buy_price_display,
-                          sell_price_internal, sell_price_display,
-                          weight, is_purchasable, is_sellable, is_craftable,
-                          pricing_group, notes)
-        VALUES (:code, :name, :category_main, :category_sub,
-                :buy_price_internal, :buy_price_display,
-                :sell_price_internal, :sell_price_display,
-                :weight, :is_purchasable, :is_sellable, :is_craftable,
-                :pricing_group, :notes)
+        INSERT INTO items (code, name, category, buy_price, sell_price_internal,
+                          sell_price_display, weight, pricing_group, notes)
+        VALUES (:code, :name, :category, :buy_price, :sell_price_internal,
+                :sell_price_display, :weight, :pricing_group, :notes)
     )");
 
     query.bindValue(":code", item.code);
     query.bindValue(":name", item.name);
-    query.bindValue(":category_main", item.categoryMain);
-    query.bindValue(":category_sub", item.categorySub);
-    query.bindValue(":buy_price_internal", item.buyPriceInternal);
-    query.bindValue(":buy_price_display", item.buyPriceDisplay);
+    query.bindValue(":category", item.displayCategory());
+    query.bindValue(":buy_price", item.buyPriceInternal);
     query.bindValue(":sell_price_internal", item.sellPriceInternal);
     query.bindValue(":sell_price_display", item.sellPriceDisplay);
     query.bindValue(":weight", item.weight);
-    query.bindValue(":is_purchasable", item.isPurchasable ? 1 : 0);
-    query.bindValue(":is_sellable", item.isSellable ? 1 : 0);
-    query.bindValue(":is_craftable", item.isCraftable ? 1 : 0);
     query.bindValue(":pricing_group", pricingGroupToString(item.pricingGroup));
     query.bindValue(":notes", item.notes);
 
@@ -289,16 +264,12 @@ std::optional<Item> Database::getItem(int id)
     item.id = query.value("id").toInt();
     item.code = query.value("code").toString();
     item.name = query.value("name").toString();
-    item.categoryMain = query.value("category_main").toString();
-    item.categorySub = query.value("category_sub").toString();
-    item.buyPriceInternal = query.value("buy_price_internal").toDouble();
-    item.buyPriceDisplay = query.value("buy_price_display").toDouble();
+    item.categoryMain = query.value("category").toString();
+    item.buyPriceInternal = query.value("buy_price").toDouble();
+    item.buyPriceDisplay = std::round(item.buyPriceInternal);
     item.sellPriceInternal = query.value("sell_price_internal").toDouble();
     item.sellPriceDisplay = query.value("sell_price_display").toDouble();
     item.weight = query.value("weight").toDouble();
-    item.isPurchasable = query.value("is_purchasable").toInt() == 1;
-    item.isSellable = query.value("is_sellable").toInt() == 1;
-    item.isCraftable = query.value("is_craftable").toInt() == 1;
     item.pricingGroup = stringToPricingGroup(query.value("pricing_group").toString());
     item.notes = query.value("notes").toString();
 
@@ -321,48 +292,12 @@ std::optional<Item> Database::getItemByCode(const QString &code)
     item.id = query.value("id").toInt();
     item.code = query.value("code").toString();
     item.name = query.value("name").toString();
-    item.categoryMain = query.value("category_main").toString();
-    item.categorySub = query.value("category_sub").toString();
-    item.buyPriceInternal = query.value("buy_price_internal").toDouble();
-    item.buyPriceDisplay = query.value("buy_price_display").toDouble();
+    item.categoryMain = query.value("category").toString();
+    item.buyPriceInternal = query.value("buy_price").toDouble();
+    item.buyPriceDisplay = std::round(item.buyPriceInternal);
     item.sellPriceInternal = query.value("sell_price_internal").toDouble();
     item.sellPriceDisplay = query.value("sell_price_display").toDouble();
     item.weight = query.value("weight").toDouble();
-    item.isPurchasable = query.value("is_purchasable").toInt() == 1;
-    item.isSellable = query.value("is_sellable").toInt() == 1;
-    item.isCraftable = query.value("is_craftable").toInt() == 1;
-    item.pricingGroup = stringToPricingGroup(query.value("pricing_group").toString());
-    item.notes = query.value("notes").toString();
-
-    return item;
-}
-
-std::optional<Item> Database::getItemByName(const QString &name)
-{
-    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
-    QSqlQuery query(db);
-
-    query.prepare("SELECT * FROM items WHERE name = :name");
-    query.bindValue(":name", name);
-
-    if (!query.exec() || !query.next()) {
-        return std::nullopt;
-    }
-
-    Item item;
-    item.id = query.value("id").toInt();
-    item.code = query.value("code").toString();
-    item.name = query.value("name").toString();
-    item.categoryMain = query.value("category_main").toString();
-    item.categorySub = query.value("category_sub").toString();
-    item.buyPriceInternal = query.value("buy_price_internal").toDouble();
-    item.buyPriceDisplay = query.value("buy_price_display").toDouble();
-    item.sellPriceInternal = query.value("sell_price_internal").toDouble();
-    item.sellPriceDisplay = query.value("sell_price_display").toDouble();
-    item.weight = query.value("weight").toDouble();
-    item.isPurchasable = query.value("is_purchasable").toInt() == 1;
-    item.isSellable = query.value("is_sellable").toInt() == 1;
-    item.isCraftable = query.value("is_craftable").toInt() == 1;
     item.pricingGroup = stringToPricingGroup(query.value("pricing_group").toString());
     item.notes = query.value("notes").toString();
 
@@ -375,9 +310,8 @@ QVector<Item> Database::getAllItems()
     QSqlDatabase db = QSqlDatabase::database(m_connectionName);
     QSqlQuery query(db);
 
-    if (!query.exec("SELECT * FROM items ORDER BY category_main, category_sub, name")) {
-        m_lastError = query.lastError().text();
-        qWarning() << "Failed to get items:" << m_lastError;
+    if (!query.exec("SELECT * FROM items ORDER BY category, name")) {
+        qWarning() << "Failed to get items:" << query.lastError().text();
         return items;
     }
 
@@ -386,16 +320,12 @@ QVector<Item> Database::getAllItems()
         item.id = query.value("id").toInt();
         item.code = query.value("code").toString();
         item.name = query.value("name").toString();
-        item.categoryMain = query.value("category_main").toString();
-        item.categorySub = query.value("category_sub").toString();
-        item.buyPriceInternal = query.value("buy_price_internal").toDouble();
-        item.buyPriceDisplay = query.value("buy_price_display").toDouble();
+        item.categoryMain = query.value("category").toString();
+        item.buyPriceInternal = query.value("buy_price").toDouble();
+        item.buyPriceDisplay = std::round(item.buyPriceInternal);
         item.sellPriceInternal = query.value("sell_price_internal").toDouble();
         item.sellPriceDisplay = query.value("sell_price_display").toDouble();
         item.weight = query.value("weight").toDouble();
-        item.isPurchasable = query.value("is_purchasable").toInt() == 1;
-        item.isSellable = query.value("is_sellable").toInt() == 1;
-        item.isCraftable = query.value("is_craftable").toInt() == 1;
         item.pricingGroup = stringToPricingGroup(query.value("pricing_group").toString());
         item.notes = query.value("notes").toString();
         items.append(item);
@@ -410,13 +340,13 @@ QVector<QString> Database::getAllCategories()
     QSqlDatabase db = QSqlDatabase::database(m_connectionName);
     QSqlQuery query(db);
 
-    if (!query.exec("SELECT DISTINCT category_main FROM items WHERE category_main IS NOT NULL ORDER BY category_main")) {
-        m_lastError = query.lastError().text();
+    if (!query.exec("SELECT DISTINCT category FROM items ORDER BY category")) {
+        qWarning() << "Failed to get categories:" << query.lastError().text();
         return categories;
     }
 
     while (query.next()) {
-        QString category = query.value("category_main").toString();
+        QString category = query.value("category").toString();
         if (!category.isEmpty()) {
             categories.append(category);
         }
@@ -425,46 +355,17 @@ QVector<QString> Database::getAllCategories()
     return categories;
 }
 
-QVector<QString> Database::getAllMainCategories()
-{
-    return getAllCategories();
-}
-
-QVector<QString> Database::getSubCategoriesFor(const QString &mainCategory)
-{
-    QVector<QString> subCategories;
-    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
-    QSqlQuery query(db);
-
-    query.prepare("SELECT DISTINCT category_sub FROM items WHERE category_main = :main AND category_sub IS NOT NULL ORDER BY category_sub");
-    query.bindValue(":main", mainCategory);
-
-    if (!query.exec()) {
-        m_lastError = query.lastError().text();
-        return subCategories;
-    }
-
-    while (query.next()) {
-        QString subCat = query.value("category_sub").toString();
-        if (!subCat.isEmpty()) {
-            subCategories.append(subCat);
-        }
-    }
-
-    return subCategories;
-}
-
 QVector<Item> Database::getItemsByCategory(const QString &category)
 {
     QVector<Item> items;
     QSqlDatabase db = QSqlDatabase::database(m_connectionName);
     QSqlQuery query(db);
 
-    query.prepare("SELECT * FROM items WHERE category_main = :category ORDER BY name");
+    query.prepare("SELECT * FROM items WHERE category = :category ORDER BY name");
     query.bindValue(":category", category);
 
     if (!query.exec()) {
-        m_lastError = query.lastError().text();
+        qWarning() << "Failed to get items by category:" << query.lastError().text();
         return items;
     }
 
@@ -473,16 +374,12 @@ QVector<Item> Database::getItemsByCategory(const QString &category)
         item.id = query.value("id").toInt();
         item.code = query.value("code").toString();
         item.name = query.value("name").toString();
-        item.categoryMain = query.value("category_main").toString();
-        item.categorySub = query.value("category_sub").toString();
-        item.buyPriceInternal = query.value("buy_price_internal").toDouble();
-        item.buyPriceDisplay = query.value("buy_price_display").toDouble();
+        item.categoryMain = query.value("category").toString();
+        item.buyPriceInternal = query.value("buy_price").toDouble();
+        item.buyPriceDisplay = std::round(item.buyPriceInternal);
         item.sellPriceInternal = query.value("sell_price_internal").toDouble();
         item.sellPriceDisplay = query.value("sell_price_display").toDouble();
         item.weight = query.value("weight").toDouble();
-        item.isPurchasable = query.value("is_purchasable").toInt() == 1;
-        item.isSellable = query.value("is_sellable").toInt() == 1;
-        item.isCraftable = query.value("is_craftable").toInt() == 1;
         item.pricingGroup = stringToPricingGroup(query.value("pricing_group").toString());
         item.notes = query.value("notes").toString();
         items.append(item);
@@ -494,7 +391,8 @@ QVector<Item> Database::getItemsByCategory(const QString &category)
 bool Database::updateItem(const Item &item)
 {
     if (!item.id.has_value()) {
-        qWarning() << "Cannot update item without id";
+        m_lastError = "Cannot update item without id";
+        qWarning() << m_lastError;
         return false;
     }
 
@@ -505,16 +403,11 @@ bool Database::updateItem(const Item &item)
         UPDATE items SET
             code = :code,
             name = :name,
-            category_main = :category_main,
-            category_sub = :category_sub,
-            buy_price_internal = :buy_price_internal,
-            buy_price_display = :buy_price_display,
+            category = :category,
+            buy_price = :buy_price,
             sell_price_internal = :sell_price_internal,
             sell_price_display = :sell_price_display,
             weight = :weight,
-            is_purchasable = :is_purchasable,
-            is_sellable = :is_sellable,
-            is_craftable = :is_craftable,
             pricing_group = :pricing_group,
             notes = :notes
         WHERE id = :id
@@ -523,16 +416,11 @@ bool Database::updateItem(const Item &item)
     query.bindValue(":id", item.id.value());
     query.bindValue(":code", item.code);
     query.bindValue(":name", item.name);
-    query.bindValue(":category_main", item.categoryMain);
-    query.bindValue(":category_sub", item.categorySub);
-    query.bindValue(":buy_price_internal", item.buyPriceInternal);
-    query.bindValue(":buy_price_display", item.buyPriceDisplay);
+    query.bindValue(":category", item.displayCategory());
+    query.bindValue(":buy_price", item.buyPriceInternal);
     query.bindValue(":sell_price_internal", item.sellPriceInternal);
     query.bindValue(":sell_price_display", item.sellPriceDisplay);
     query.bindValue(":weight", item.weight);
-    query.bindValue(":is_purchasable", item.isPurchasable ? 1 : 0);
-    query.bindValue(":is_sellable", item.isSellable ? 1 : 0);
-    query.bindValue(":is_craftable", item.isCraftable ? 1 : 0);
     query.bindValue(":pricing_group", pricingGroupToString(item.pricingGroup));
     query.bindValue(":notes", item.notes);
 
@@ -554,7 +442,7 @@ bool Database::deleteItem(int id)
     query.bindValue(":id", id);
 
     if (!query.exec()) {
-        m_lastError = query.lastError().text();
+        qWarning() << "Failed to delete item:" << query.lastError().text();
         return false;
     }
 
@@ -571,16 +459,16 @@ bool Database::addTransaction(const Transaction &transaction)
     QSqlQuery query(db);
 
     query.prepare(R"(
-        INSERT INTO transactions (date, type, account, item, category,
+        INSERT INTO transactions (date, type, account, item_name, category,
                                   quantity, unit_price, total_amount, notes)
-        VALUES (:date, :type, :account, :item, :category,
+        VALUES (:date, :type, :account, :item_name, :category,
                 :quantity, :unit_price, :total_amount, :notes)
     )");
 
     query.bindValue(":date", transaction.date.toString(Qt::ISODate));
     query.bindValue(":type", transactionTypeToString(transaction.type));
     query.bindValue(":account", accountTypeToString(transaction.account));
-    query.bindValue(":item", transaction.item);
+    query.bindValue(":item_name", transaction.item);
     query.bindValue(":category", transaction.category);
     query.bindValue(":quantity", transaction.quantity);
     query.bindValue(":unit_price", transaction.unitPrice);
@@ -588,7 +476,7 @@ bool Database::addTransaction(const Transaction &transaction)
     query.bindValue(":notes", transaction.notes);
 
     if (!query.exec()) {
-        m_lastError = query.lastError().text();
+        qWarning() << "Failed to add transaction:" << query.lastError().text();
         return false;
     }
 
@@ -607,19 +495,19 @@ std::optional<Transaction> Database::getTransaction(int id)
         return std::nullopt;
     }
 
-    Transaction trans;
-    trans.id = query.value("id").toInt();
-    trans.date = QDate::fromString(query.value("date").toString(), Qt::ISODate);
-    trans.type = stringToTransactionType(query.value("type").toString());
-    trans.account = stringToAccountType(query.value("account").toString());
-    trans.item = query.value("item").toString();
-    trans.category = query.value("category").toString();
-    trans.quantity = query.value("quantity").toInt();
-    trans.unitPrice = query.value("unit_price").toDouble();
-    trans.totalAmount = query.value("total_amount").toDouble();
-    trans.notes = query.value("notes").toString();
+    Transaction transaction;
+    transaction.id = query.value("id").toInt();
+    transaction.date = QDate::fromString(query.value("date").toString(), Qt::ISODate);
+    transaction.type = stringToTransactionType(query.value("type").toString());
+    transaction.account = stringToAccountType(query.value("account").toString());
+    transaction.item = query.value("item_name").toString();
+    transaction.category = query.value("category").toString();
+    transaction.quantity = query.value("quantity").toInt();
+    transaction.unitPrice = query.value("unit_price").toDouble();
+    transaction.totalAmount = query.value("total_amount").toDouble();
+    transaction.notes = query.value("notes").toString();
 
-    return trans;
+    return transaction;
 }
 
 QVector<Transaction> Database::getAllTransactions()
@@ -629,23 +517,23 @@ QVector<Transaction> Database::getAllTransactions()
     QSqlQuery query(db);
 
     if (!query.exec("SELECT * FROM transactions ORDER BY date DESC, id DESC")) {
-        m_lastError = query.lastError().text();
+        qWarning() << "Failed to get transactions:" << query.lastError().text();
         return transactions;
     }
 
     while (query.next()) {
-        Transaction trans;
-        trans.id = query.value("id").toInt();
-        trans.date = QDate::fromString(query.value("date").toString(), Qt::ISODate);
-        trans.type = stringToTransactionType(query.value("type").toString());
-        trans.account = stringToAccountType(query.value("account").toString());
-        trans.item = query.value("item").toString();
-        trans.category = query.value("category").toString();
-        trans.quantity = query.value("quantity").toInt();
-        trans.unitPrice = query.value("unit_price").toDouble();
-        trans.totalAmount = query.value("total_amount").toDouble();
-        trans.notes = query.value("notes").toString();
-        transactions.append(trans);
+        Transaction transaction;
+        transaction.id = query.value("id").toInt();
+        transaction.date = QDate::fromString(query.value("date").toString(), Qt::ISODate);
+        transaction.type = stringToTransactionType(query.value("type").toString());
+        transaction.account = stringToAccountType(query.value("account").toString());
+        transaction.item = query.value("item_name").toString();
+        transaction.category = query.value("category").toString();
+        transaction.quantity = query.value("quantity").toInt();
+        transaction.unitPrice = query.value("unit_price").toDouble();
+        transaction.totalAmount = query.value("total_amount").toDouble();
+        transaction.notes = query.value("notes").toString();
+        transactions.append(transaction);
     }
 
     return transactions;
@@ -662,27 +550,28 @@ QVector<Transaction> Database::getTransactionsByDateRange(const QDate &from, con
         WHERE date >= :from AND date <= :to
         ORDER BY date DESC, id DESC
     )");
+
     query.bindValue(":from", from.toString(Qt::ISODate));
     query.bindValue(":to", to.toString(Qt::ISODate));
 
     if (!query.exec()) {
-        m_lastError = query.lastError().text();
+        qWarning() << "Failed to get transactions by date range:" << query.lastError().text();
         return transactions;
     }
 
     while (query.next()) {
-        Transaction trans;
-        trans.id = query.value("id").toInt();
-        trans.date = QDate::fromString(query.value("date").toString(), Qt::ISODate);
-        trans.type = stringToTransactionType(query.value("type").toString());
-        trans.account = stringToAccountType(query.value("account").toString());
-        trans.item = query.value("item").toString();
-        trans.category = query.value("category").toString();
-        trans.quantity = query.value("quantity").toInt();
-        trans.unitPrice = query.value("unit_price").toDouble();
-        trans.totalAmount = query.value("total_amount").toDouble();
-        trans.notes = query.value("notes").toString();
-        transactions.append(trans);
+        Transaction transaction;
+        transaction.id = query.value("id").toInt();
+        transaction.date = QDate::fromString(query.value("date").toString(), Qt::ISODate);
+        transaction.type = stringToTransactionType(query.value("type").toString());
+        transaction.account = stringToAccountType(query.value("account").toString());
+        transaction.item = query.value("item_name").toString();
+        transaction.category = query.value("category").toString();
+        transaction.quantity = query.value("quantity").toInt();
+        transaction.unitPrice = query.value("unit_price").toDouble();
+        transaction.totalAmount = query.value("total_amount").toDouble();
+        transaction.notes = query.value("notes").toString();
+        transactions.append(transaction);
     }
 
     return transactions;
@@ -691,6 +580,7 @@ QVector<Transaction> Database::getTransactionsByDateRange(const QDate &from, con
 bool Database::updateTransaction(const Transaction &transaction)
 {
     if (!transaction.id.has_value()) {
+        qWarning() << "Cannot update transaction without id";
         return false;
     }
 
@@ -702,7 +592,7 @@ bool Database::updateTransaction(const Transaction &transaction)
             date = :date,
             type = :type,
             account = :account,
-            item = :item,
+            item_name = :item_name,
             category = :category,
             quantity = :quantity,
             unit_price = :unit_price,
@@ -715,7 +605,7 @@ bool Database::updateTransaction(const Transaction &transaction)
     query.bindValue(":date", transaction.date.toString(Qt::ISODate));
     query.bindValue(":type", transactionTypeToString(transaction.type));
     query.bindValue(":account", accountTypeToString(transaction.account));
-    query.bindValue(":item", transaction.item);
+    query.bindValue(":item_name", transaction.item);
     query.bindValue(":category", transaction.category);
     query.bindValue(":quantity", transaction.quantity);
     query.bindValue(":unit_price", transaction.unitPrice);
@@ -723,7 +613,7 @@ bool Database::updateTransaction(const Transaction &transaction)
     query.bindValue(":notes", transaction.notes);
 
     if (!query.exec()) {
-        m_lastError = query.lastError().text();
+        qWarning() << "Failed to update transaction:" << query.lastError().text();
         return false;
     }
 
@@ -739,7 +629,7 @@ bool Database::deleteTransaction(int id)
     query.bindValue(":id", id);
 
     if (!query.exec()) {
-        m_lastError = query.lastError().text();
+        qWarning() << "Failed to delete transaction:" << query.lastError().text();
         return false;
     }
 
@@ -779,7 +669,7 @@ bool Database::addVehicle(const Vehicle &vehicle)
     query.bindValue(":notes", vehicle.notes);
 
     if (!query.exec()) {
-        m_lastError = query.lastError().text();
+        qWarning() << "Failed to add vehicle:" << query.lastError().text();
         return false;
     }
 
@@ -798,20 +688,20 @@ std::optional<Vehicle> Database::getVehicle(const QString &id)
         return std::nullopt;
     }
 
-    Vehicle v;
-    v.id = query.value("id").toString();
-    v.name = query.value("name").toString();
-    v.categoryMain = query.value("category_main").toString();
-    v.categorySub = query.value("category_sub").toString();
-    v.bucketCapacityM3 = query.value("bucket_capacity_m3").toDouble();
-    v.truckCapacityM3 = query.value("truck_capacity_m3").toDouble();
-    v.tankCapacityL = query.value("tank_capacity_l").toDouble();
-    v.fuelUseLPerHour = query.value("fuel_use_l_per_hour").toDouble();
-    v.purchasePrice = query.value("purchase_price").toDouble();
-    v.active = query.value("active").toInt() == 1;
-    v.notes = query.value("notes").toString();
+    Vehicle vehicle;
+    vehicle.id = query.value("id").toString();
+    vehicle.name = query.value("name").toString();
+    vehicle.categoryMain = query.value("category_main").toString();
+    vehicle.categorySub = query.value("category_sub").toString();
+    vehicle.bucketCapacityM3 = query.value("bucket_capacity_m3").toDouble();
+    vehicle.truckCapacityM3 = query.value("truck_capacity_m3").toDouble();
+    vehicle.tankCapacityL = query.value("tank_capacity_l").toDouble();
+    vehicle.fuelUseLPerHour = query.value("fuel_use_l_per_hour").toDouble();
+    vehicle.purchasePrice = query.value("purchase_price").toDouble();
+    vehicle.active = query.value("active").toInt() == 1;
+    vehicle.notes = query.value("notes").toString();
 
-    return v;
+    return vehicle;
 }
 
 QVector<Vehicle> Database::getAllVehicles(bool activeOnly)
@@ -827,24 +717,24 @@ QVector<Vehicle> Database::getAllVehicles(bool activeOnly)
     sql += " ORDER BY category_main, name";
 
     if (!query.exec(sql)) {
-        m_lastError = query.lastError().text();
+        qWarning() << "Failed to get vehicles:" << query.lastError().text();
         return vehicles;
     }
 
     while (query.next()) {
-        Vehicle v;
-        v.id = query.value("id").toString();
-        v.name = query.value("name").toString();
-        v.categoryMain = query.value("category_main").toString();
-        v.categorySub = query.value("category_sub").toString();
-        v.bucketCapacityM3 = query.value("bucket_capacity_m3").toDouble();
-        v.truckCapacityM3 = query.value("truck_capacity_m3").toDouble();
-        v.tankCapacityL = query.value("tank_capacity_l").toDouble();
-        v.fuelUseLPerHour = query.value("fuel_use_l_per_hour").toDouble();
-        v.purchasePrice = query.value("purchase_price").toDouble();
-        v.active = query.value("active").toInt() == 1;
-        v.notes = query.value("notes").toString();
-        vehicles.append(v);
+        Vehicle vehicle;
+        vehicle.id = query.value("id").toString();
+        vehicle.name = query.value("name").toString();
+        vehicle.categoryMain = query.value("category_main").toString();
+        vehicle.categorySub = query.value("category_sub").toString();
+        vehicle.bucketCapacityM3 = query.value("bucket_capacity_m3").toDouble();
+        vehicle.truckCapacityM3 = query.value("truck_capacity_m3").toDouble();
+        vehicle.tankCapacityL = query.value("tank_capacity_l").toDouble();
+        vehicle.fuelUseLPerHour = query.value("fuel_use_l_per_hour").toDouble();
+        vehicle.purchasePrice = query.value("purchase_price").toDouble();
+        vehicle.active = query.value("active").toInt() == 1;
+        vehicle.notes = query.value("notes").toString();
+        vehicles.append(vehicle);
     }
 
     return vehicles;
@@ -883,7 +773,7 @@ bool Database::updateVehicle(const Vehicle &vehicle)
     query.bindValue(":notes", vehicle.notes);
 
     if (!query.exec()) {
-        m_lastError = query.lastError().text();
+        qWarning() << "Failed to update vehicle:" << query.lastError().text();
         return false;
     }
 
@@ -899,7 +789,7 @@ bool Database::deleteVehicle(const QString &id)
     query.bindValue(":id", id);
 
     if (!query.exec()) {
-        m_lastError = query.lastError().text();
+        qWarning() << "Failed to delete vehicle:" << query.lastError().text();
         return false;
     }
 
@@ -932,7 +822,7 @@ bool Database::addFuelLogEntry(const FuelLogEntry &entry)
     query.bindValue(":notes", entry.notes);
 
     if (!query.exec()) {
-        m_lastError = query.lastError().text();
+        qWarning() << "Failed to add fuel log entry:" << query.lastError().text();
         return false;
     }
 
@@ -954,17 +844,19 @@ QVector<FuelLogEntry> Database::getFuelLog(const QDateTime &from, const QDateTim
     if (!equipmentId.isEmpty()) {
         sql += " AND equipment_id = :equipment_id";
     }
+
     sql += " ORDER BY date_time DESC";
 
     query.prepare(sql);
     query.bindValue(":from", from.toString(Qt::ISODate));
     query.bindValue(":to", to.toString(Qt::ISODate));
+
     if (!equipmentId.isEmpty()) {
         query.bindValue(":equipment_id", equipmentId);
     }
 
     if (!query.exec()) {
-        m_lastError = query.lastError().text();
+        qWarning() << "Failed to get fuel log:" << query.lastError().text();
         return entries;
     }
 
@@ -991,15 +883,18 @@ double Database::getTotalFuelInRange(const QDateTime &from, const QDateTime &to)
     QSqlQuery query(db);
 
     query.prepare(R"(
-        SELECT COALESCE(SUM(liters), 0) as total FROM fuel_log
+        SELECT COALESCE(SUM(liters), 0) as total
+        FROM fuel_log
         WHERE date_time >= :from AND date_time <= :to
     )");
+
     query.bindValue(":from", from.toString(Qt::ISODate));
     query.bindValue(":to", to.toString(Qt::ISODate));
 
     if (query.exec() && query.next()) {
         return query.value("total").toDouble();
     }
+
     return 0;
 }
 
@@ -1009,20 +904,23 @@ double Database::getTotalFuelCostInRange(const QDateTime &from, const QDateTime 
     QSqlQuery query(db);
 
     query.prepare(R"(
-        SELECT COALESCE(SUM(total_cost), 0) as total FROM fuel_log
+        SELECT COALESCE(SUM(total_cost), 0) as total
+        FROM fuel_log
         WHERE date_time >= :from AND date_time <= :to
     )");
+
     query.bindValue(":from", from.toString(Qt::ISODate));
     query.bindValue(":to", to.toString(Qt::ISODate));
 
     if (query.exec() && query.next()) {
         return query.value("total").toDouble();
     }
+
     return 0;
 }
 
 // =============================================================================
-// Movement Session CRUD
+// Movement Sessions CRUD
 // =============================================================================
 
 int Database::addMovementSession(const MovementSession &session)
@@ -1042,7 +940,7 @@ int Database::addMovementSession(const MovementSession &session)
     query.bindValue(":notes", session.notes);
 
     if (!query.exec()) {
-        m_lastError = query.lastError().text();
+        qWarning() << "Failed to add movement session:" << query.lastError().text();
         return -1;
     }
 
@@ -1064,10 +962,12 @@ std::optional<MovementSession> Database::getMovementSession(int id)
     MovementSession session;
     session.id = query.value("id").toInt();
     session.startTime = QDateTime::fromString(query.value("start_time").toString(), Qt::ISODate);
+
     QString endTimeStr = query.value("end_time").toString();
     if (!endTimeStr.isEmpty()) {
         session.endTime = QDateTime::fromString(endTimeStr, Qt::ISODate);
     }
+
     session.mapName = query.value("map_name").toString();
     session.notes = query.value("notes").toString();
 
@@ -1081,7 +981,7 @@ QVector<MovementSession> Database::getAllMovementSessions()
     QSqlQuery query(db);
 
     if (!query.exec("SELECT * FROM movement_sessions ORDER BY start_time DESC")) {
-        m_lastError = query.lastError().text();
+        qWarning() << "Failed to get movement sessions:" << query.lastError().text();
         return sessions;
     }
 
@@ -1089,10 +989,12 @@ QVector<MovementSession> Database::getAllMovementSessions()
         MovementSession session;
         session.id = query.value("id").toInt();
         session.startTime = QDateTime::fromString(query.value("start_time").toString(), Qt::ISODate);
+
         QString endTimeStr = query.value("end_time").toString();
         if (!endTimeStr.isEmpty()) {
             session.endTime = QDateTime::fromString(endTimeStr, Qt::ISODate);
         }
+
         session.mapName = query.value("map_name").toString();
         session.notes = query.value("notes").toString();
         sessions.append(session);
@@ -1125,7 +1027,7 @@ bool Database::updateMovementSession(const MovementSession &session)
     query.bindValue(":notes", session.notes);
 
     if (!query.exec()) {
-        m_lastError = query.lastError().text();
+        qWarning() << "Failed to update movement session:" << query.lastError().text();
         return false;
     }
 
@@ -1144,7 +1046,7 @@ bool Database::deleteMovementSession(int id)
     query.bindValue(":id", id);
 
     if (!query.exec()) {
-        m_lastError = query.lastError().text();
+        qWarning() << "Failed to delete movement session:" << query.lastError().text();
         return false;
     }
 
@@ -1160,27 +1062,33 @@ bool Database::addOrUpdateEquipmentUsage(const MovementEquipmentUsage &usage)
     QSqlDatabase db = QSqlDatabase::database(m_connectionName);
     QSqlQuery query(db);
 
-    // Check if entry exists
+    // Check if entry exists for this session/equipment/role combo
     query.prepare(R"(
         SELECT id FROM movement_equipment_usage
-        WHERE session_id = :session_id AND equipment_id = :equipment_id AND role = :role
+        WHERE session_id = :session_id
+          AND equipment_id = :equipment_id
+          AND role = :role
     )");
     query.bindValue(":session_id", usage.sessionId);
     query.bindValue(":equipment_id", usage.equipmentId);
     query.bindValue(":role", usage.role);
 
     if (query.exec() && query.next()) {
-        // Update
+        // Update existing
         int existingId = query.value("id").toInt();
+
         query.prepare(R"(
             UPDATE movement_equipment_usage SET
-                hours_used = :hours_used, buckets = :buckets,
-                loads = :loads, dumps = :dumps, estimated_fuel_l = :estimated_fuel_l
+                hours_used = :hours_used,
+                buckets = :buckets,
+                loads = :loads,
+                dumps = :dumps,
+                estimated_fuel_l = :estimated_fuel_l
             WHERE id = :id
         )");
         query.bindValue(":id", existingId);
     } else {
-        // Insert
+        // Insert new
         query.prepare(R"(
             INSERT INTO movement_equipment_usage
                 (session_id, equipment_id, role, hours_used, buckets, loads, dumps, estimated_fuel_l)
@@ -1199,7 +1107,7 @@ bool Database::addOrUpdateEquipmentUsage(const MovementEquipmentUsage &usage)
     query.bindValue(":estimated_fuel_l", usage.estimatedFuelL);
 
     if (!query.exec()) {
-        m_lastError = query.lastError().text();
+        qWarning() << "Failed to add/update equipment usage:" << query.lastError().text();
         return false;
     }
 
@@ -1212,11 +1120,15 @@ QVector<MovementEquipmentUsage> Database::getEquipmentUsageForSession(int sessio
     QSqlDatabase db = QSqlDatabase::database(m_connectionName);
     QSqlQuery query(db);
 
-    query.prepare("SELECT * FROM movement_equipment_usage WHERE session_id = :session_id ORDER BY id");
+    query.prepare(R"(
+        SELECT * FROM movement_equipment_usage
+        WHERE session_id = :session_id
+        ORDER BY id
+    )");
     query.bindValue(":session_id", sessionId);
 
     if (!query.exec()) {
-        m_lastError = query.lastError().text();
+        qWarning() << "Failed to get equipment usage:" << query.lastError().text();
         return usages;
     }
 
@@ -1246,7 +1158,7 @@ bool Database::deleteEquipmentUsage(int id)
     query.bindValue(":id", id);
 
     if (!query.exec()) {
-        m_lastError = query.lastError().text();
+        qWarning() << "Failed to delete equipment usage:" << query.lastError().text();
         return false;
     }
 
@@ -1262,11 +1174,468 @@ bool Database::deleteEquipmentUsageForSession(int sessionId)
     query.bindValue(":session_id", sessionId);
 
     if (!query.exec()) {
-        m_lastError = query.lastError().text();
+        qWarning() << "Failed to delete equipment usage for session:" << query.lastError().text();
         return false;
     }
 
     return true;
+}
+
+// =============================================================================
+// Recipe Tables
+// =============================================================================
+
+bool Database::createRecipeTables()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    // Workbenches table
+    if (!query.exec(R"(
+        CREATE TABLE IF NOT EXISTS workbenches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL
+        )
+    )")) {
+        qWarning() << "Failed to create workbenches table:" << query.lastError().text();
+        return false;
+    }
+
+    // Recipes table
+    if (!query.exec(R"(
+        CREATE TABLE IF NOT EXISTS recipes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            workbench_id INTEGER NOT NULL,
+            output_item TEXT NOT NULL,
+            output_qty INTEGER DEFAULT 1,
+            notes TEXT,
+            FOREIGN KEY (workbench_id) REFERENCES workbenches(id)
+        )
+    )")) {
+        qWarning() << "Failed to create recipes table:" << query.lastError().text();
+        return false;
+    }
+
+    // Recipe ingredients table
+    if (!query.exec(R"(
+        CREATE TABLE IF NOT EXISTS recipe_ingredients (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            recipe_id INTEGER NOT NULL,
+            item_name TEXT NOT NULL,
+            quantity INTEGER DEFAULT 1,
+            FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE
+        )
+    )")) {
+        qWarning() << "Failed to create recipe_ingredients table:" << query.lastError().text();
+        return false;
+    }
+
+    return true;
+}
+
+// =============================================================================
+// Workbench CRUD
+// =============================================================================
+
+int Database::addWorkbench(const Workbench &workbench)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("INSERT INTO workbenches (name) VALUES (:name)");
+    query.bindValue(":name", workbench.name);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to add workbench:" << query.lastError().text();
+        return -1;
+    }
+
+    return query.lastInsertId().toInt();
+}
+
+std::optional<Workbench> Database::getWorkbench(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("SELECT * FROM workbenches WHERE id = :id");
+    query.bindValue(":id", id);
+
+    if (!query.exec() || !query.next()) {
+        return std::nullopt;
+    }
+
+    Workbench wb;
+    wb.id = query.value("id").toInt();
+    wb.name = query.value("name").toString();
+
+    return wb;
+}
+
+std::optional<Workbench> Database::getWorkbenchByName(const QString &name)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("SELECT * FROM workbenches WHERE name = :name");
+    query.bindValue(":name", name);
+
+    if (!query.exec() || !query.next()) {
+        return std::nullopt;
+    }
+
+    Workbench wb;
+    wb.id = query.value("id").toInt();
+    wb.name = query.value("name").toString();
+
+    return wb;
+}
+
+QVector<Workbench> Database::getAllWorkbenches()
+{
+    QVector<Workbench> workbenches;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec("SELECT * FROM workbenches ORDER BY name")) {
+        qWarning() << "Failed to get workbenches:" << query.lastError().text();
+        return workbenches;
+    }
+
+    while (query.next()) {
+        Workbench wb;
+        wb.id = query.value("id").toInt();
+        wb.name = query.value("name").toString();
+        workbenches.append(wb);
+    }
+
+    return workbenches;
+}
+
+bool Database::deleteWorkbench(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("DELETE FROM workbenches WHERE id = :id");
+    query.bindValue(":id", id);
+
+    return query.exec();
+}
+
+bool Database::clearAllWorkbenches()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    // Delete in order due to foreign keys
+    if (!query.exec("DELETE FROM recipe_ingredients")) {
+        qWarning() << "Failed to clear recipe_ingredients:" << query.lastError().text();
+        return false;
+    }
+    if (!query.exec("DELETE FROM recipes")) {
+        qWarning() << "Failed to clear recipes:" << query.lastError().text();
+        return false;
+    }
+    if (!query.exec("DELETE FROM workbenches")) {
+        qWarning() << "Failed to clear workbenches:" << query.lastError().text();
+        return false;
+    }
+
+    return true;
+}
+
+// =============================================================================
+// Recipe CRUD
+// =============================================================================
+
+int Database::addRecipe(const Recipe &recipe)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        INSERT INTO recipes (workbench_id, output_item, output_qty, notes)
+        VALUES (:workbench_id, :output_item, :output_qty, :notes)
+    )");
+    query.bindValue(":workbench_id", recipe.workbenchId);
+    query.bindValue(":output_item", recipe.outputItem);
+    query.bindValue(":output_qty", recipe.outputQty);
+    query.bindValue(":notes", recipe.notes);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to add recipe:" << query.lastError().text();
+        return -1;
+    }
+
+    return query.lastInsertId().toInt();
+}
+
+std::optional<Recipe> Database::getRecipe(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        SELECT r.*, w.name as workbench_name
+        FROM recipes r
+        JOIN workbenches w ON r.workbench_id = w.id
+        WHERE r.id = :id
+    )");
+    query.bindValue(":id", id);
+
+    if (!query.exec() || !query.next()) {
+        return std::nullopt;
+    }
+
+    Recipe recipe;
+    recipe.id = query.value("id").toInt();
+    recipe.workbenchId = query.value("workbench_id").toInt();
+    recipe.workbenchName = query.value("workbench_name").toString();
+    recipe.outputItem = query.value("output_item").toString();
+    recipe.outputQty = query.value("output_qty").toInt();
+    recipe.notes = query.value("notes").toString();
+
+    // Load ingredients
+    recipe.ingredients = getIngredientsForRecipe(recipe.id.value());
+
+    return recipe;
+}
+
+QVector<Recipe> Database::getAllRecipes()
+{
+    QVector<Recipe> recipes;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec(R"(
+        SELECT r.*, w.name as workbench_name
+        FROM recipes r
+        JOIN workbenches w ON r.workbench_id = w.id
+        ORDER BY w.name, r.output_item
+    )")) {
+        qWarning() << "Failed to get recipes:" << query.lastError().text();
+        return recipes;
+    }
+
+    while (query.next()) {
+        Recipe recipe;
+        recipe.id = query.value("id").toInt();
+        recipe.workbenchId = query.value("workbench_id").toInt();
+        recipe.workbenchName = query.value("workbench_name").toString();
+        recipe.outputItem = query.value("output_item").toString();
+        recipe.outputQty = query.value("output_qty").toInt();
+        recipe.notes = query.value("notes").toString();
+
+        // Load ingredients
+        recipe.ingredients = getIngredientsForRecipe(recipe.id.value());
+
+        recipes.append(recipe);
+    }
+
+    return recipes;
+}
+
+QVector<Recipe> Database::getRecipesByWorkbench(int workbenchId)
+{
+    QVector<Recipe> recipes;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        SELECT r.*, w.name as workbench_name
+        FROM recipes r
+        JOIN workbenches w ON r.workbench_id = w.id
+        WHERE r.workbench_id = :workbench_id
+        ORDER BY r.output_item
+    )");
+    query.bindValue(":workbench_id", workbenchId);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to get recipes by workbench:" << query.lastError().text();
+        return recipes;
+    }
+
+    while (query.next()) {
+        Recipe recipe;
+        recipe.id = query.value("id").toInt();
+        recipe.workbenchId = query.value("workbench_id").toInt();
+        recipe.workbenchName = query.value("workbench_name").toString();
+        recipe.outputItem = query.value("output_item").toString();
+        recipe.outputQty = query.value("output_qty").toInt();
+        recipe.notes = query.value("notes").toString();
+        recipe.ingredients = getIngredientsForRecipe(recipe.id.value());
+        recipes.append(recipe);
+    }
+
+    return recipes;
+}
+
+QVector<Recipe> Database::getRecipesByWorkbenchName(const QString &workbenchName)
+{
+    auto wb = getWorkbenchByName(workbenchName);
+    if (!wb.has_value()) {
+        return QVector<Recipe>();
+    }
+    return getRecipesByWorkbench(wb->id.value());
+}
+
+QVector<Recipe> Database::getRecipesForOutput(const QString &outputItem)
+{
+    QVector<Recipe> recipes;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        SELECT r.*, w.name as workbench_name
+        FROM recipes r
+        JOIN workbenches w ON r.workbench_id = w.id
+        WHERE r.output_item = :output_item
+        ORDER BY w.name
+    )");
+    query.bindValue(":output_item", outputItem);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to get recipes for output:" << query.lastError().text();
+        return recipes;
+    }
+
+    while (query.next()) {
+        Recipe recipe;
+        recipe.id = query.value("id").toInt();
+        recipe.workbenchId = query.value("workbench_id").toInt();
+        recipe.workbenchName = query.value("workbench_name").toString();
+        recipe.outputItem = query.value("output_item").toString();
+        recipe.outputQty = query.value("output_qty").toInt();
+        recipe.notes = query.value("notes").toString();
+        recipe.ingredients = getIngredientsForRecipe(recipe.id.value());
+        recipes.append(recipe);
+    }
+
+    return recipes;
+}
+
+bool Database::deleteRecipe(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    // Delete ingredients first (cascade should handle this, but be explicit)
+    deleteIngredientsForRecipe(id);
+
+    query.prepare("DELETE FROM recipes WHERE id = :id");
+    query.bindValue(":id", id);
+
+    return query.exec();
+}
+
+bool Database::clearAllRecipes()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec("DELETE FROM recipe_ingredients")) {
+        return false;
+    }
+    if (!query.exec("DELETE FROM recipes")) {
+        return false;
+    }
+
+    return true;
+}
+
+// =============================================================================
+// Recipe Ingredient CRUD
+// =============================================================================
+
+bool Database::addRecipeIngredient(const RecipeIngredient &ingredient)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        INSERT INTO recipe_ingredients (recipe_id, item_name, quantity)
+        VALUES (:recipe_id, :item_name, :quantity)
+    )");
+    query.bindValue(":recipe_id", ingredient.recipeId);
+    query.bindValue(":item_name", ingredient.itemName);
+    query.bindValue(":quantity", ingredient.quantity);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to add recipe ingredient:" << query.lastError().text();
+        return false;
+    }
+
+    return true;
+}
+
+QVector<RecipeIngredient> Database::getIngredientsForRecipe(int recipeId)
+{
+    QVector<RecipeIngredient> ingredients;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("SELECT * FROM recipe_ingredients WHERE recipe_id = :recipe_id");
+    query.bindValue(":recipe_id", recipeId);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to get ingredients:" << query.lastError().text();
+        return ingredients;
+    }
+
+    while (query.next()) {
+        RecipeIngredient ing;
+        ing.id = query.value("id").toInt();
+        ing.recipeId = query.value("recipe_id").toInt();
+        ing.itemName = query.value("item_name").toString();
+        ing.quantity = query.value("quantity").toInt();
+        ingredients.append(ing);
+    }
+
+    return ingredients;
+}
+
+bool Database::deleteIngredientsForRecipe(int recipeId)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("DELETE FROM recipe_ingredients WHERE recipe_id = :recipe_id");
+    query.bindValue(":recipe_id", recipeId);
+
+    return query.exec();
+}
+
+// =============================================================================
+// Item Helper
+// =============================================================================
+
+std::optional<Item> Database::getItemByName(const QString &name)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("SELECT * FROM items WHERE name = :name");
+    query.bindValue(":name", name);
+
+    if (!query.exec() || !query.next()) {
+        return std::nullopt;
+    }
+
+    Item item;
+    item.id = query.value("id").toInt();
+    item.code = query.value("code").toString();
+    item.name = query.value("name").toString();
+    item.categoryMain = query.value("category").toString();
+    item.buyPriceInternal = query.value("buy_price").toDouble();
+    item.buyPriceDisplay = std::round(item.buyPriceInternal);
+    item.sellPriceInternal = query.value("sell_price_internal").toDouble();
+    item.sellPriceDisplay = query.value("sell_price_display").toDouble();
+    item.weight = query.value("weight").toDouble();
+    item.pricingGroup = stringToPricingGroup(query.value("pricing_group").toString());
+    item.notes = query.value("notes").toString();
+
+    return item;
 }
 
 // =============================================================================
@@ -1276,15 +1645,25 @@ bool Database::deleteEquipmentUsageForSession(int sessionId)
 QString pricingGroupToString(PricingGroup group)
 {
     switch (group) {
-    case PricingGroup::Base70: return "Base70";
-    case PricingGroup::Custom: return "Custom";
-    default: return "Base70";
+        case PricingGroup::Base70:
+            return "Base70";
+        // case PricingGroup::Resource72:
+        //     return "Resource72";
+        // case PricingGroup::Special75:
+        //     return "Special75";
+        case PricingGroup::Custom:
+            return "Custom";
+        default:
+            return "Base70";
     }
 }
 
 PricingGroup stringToPricingGroup(const QString &str)
 {
     if (str == "Base70") return PricingGroup::Base70;
+    // Legacy support for old data
+    // if (str == "Resource72") return PricingGroup::Resource72;
+    // if (str == "Special75") return PricingGroup::Special75;
     if (str == "Custom") return PricingGroup::Custom;
     return PricingGroup::Base70;
 }
@@ -1292,11 +1671,16 @@ PricingGroup stringToPricingGroup(const QString &str)
 QString transactionTypeToString(TransactionType type)
 {
     switch (type) {
-    case TransactionType::Sale: return "Sale";
-    case TransactionType::Purchase: return "Purchase";
-    case TransactionType::Transfer: return "Transfer";
-    case TransactionType::Fuel: return "Fuel";
-    default: return "Sale";
+        case TransactionType::Sale:
+            return "Sale";
+        case TransactionType::Purchase:
+            return "Purchase";
+        case TransactionType::Transfer:
+            return "Transfer";
+        case TransactionType::Fuel:
+            return "Fuel";
+        default:
+            return "Sale";
     }
 }
 
@@ -1312,9 +1696,12 @@ TransactionType stringToTransactionType(const QString &str)
 QString accountTypeToString(AccountType type)
 {
     switch (type) {
-    case AccountType::Company: return "Company";
-    case AccountType::Personal: return "Personal";
-    default: return "Company";
+        case AccountType::Company:
+            return "Company";
+        case AccountType::Personal:
+            return "Personal";
+        default:
+            return "Company";
     }
 }
 

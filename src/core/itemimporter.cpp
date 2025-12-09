@@ -15,6 +15,55 @@
 
 namespace Frontier {
 
+// Helper function to generate a unique code from name and notes
+static QString generateItemCode(const QString &name, const QString &notes, int index)
+{
+    // Create a base from name: take first 3 chars uppercase, remove spaces/special chars
+    QString base;
+    int charCount = 0;
+    for (const QChar &c : name.toUpper()) {
+        if (c.isLetterOrNumber() && charCount < 4) {
+            base += c;
+            charCount++;
+        }
+    }
+
+    // Pad if needed
+    while (base.length() < 3) {
+        base += 'X';
+    }
+
+    // Add notes suffix if present (R=Rough, S=Standard, P=Polished, etc.)
+    QString suffix;
+    if (!notes.isEmpty()) {
+        QString notesUpper = notes.toUpper();
+        if (notesUpper.contains("ROUGH")) {
+            suffix = "R";
+        } else if (notesUpper.contains("STANDARD")) {
+            suffix = "S";
+        } else if (notesUpper.contains("POLISHED")) {
+            suffix = "P";
+        } else if (notesUpper.contains("QUEST")) {
+            suffix = "Q";
+        } else {
+            // Take first letter of notes
+            for (const QChar &c : notesUpper) {
+                if (c.isLetter()) {
+                    suffix = c;
+                    break;
+                }
+            }
+        }
+    }
+
+    // Format: BASE_NNNNN or BASE_NNNNN_S (with suffix)
+    if (suffix.isEmpty()) {
+        return QString("%1_%2").arg(base).arg(index, 5, 10, QChar('0'));
+    } else {
+        return QString("%1_%2_%3").arg(base).arg(index, 5, 10, QChar('0')).arg(suffix);
+    }
+}
+
 int ItemImporter::importFromJson(const QString &jsonPath, Database *database, bool clearExisting)
 {
     QVector<Item> items = loadFromJson(jsonPath);
@@ -34,13 +83,22 @@ int ItemImporter::importFromJson(const QString &jsonPath, Database *database, bo
         }
     }
 
+    // Generate unique codes for items that don't have one
+    int codeIndex = 1;
+    for (auto &item : items) {
+        if (item.code.isEmpty()) {
+            item.code = generateItemCode(item.name, item.notes, codeIndex);
+        }
+        codeIndex++;
+    }
+
     // Import items
     int importedCount = 0;
     for (const auto &item : items) {
         if (database->addItem(item)) {
             importedCount++;
         } else {
-            qWarning() << "Failed to import item:" << item.name;
+            qWarning() << "Failed to import item:" << item.name << "code:" << item.code;
         }
     }
 

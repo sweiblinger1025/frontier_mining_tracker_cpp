@@ -13,15 +13,10 @@ int main(int argc, char *argv[])
     QCoreApplication::setOrganizationName("Frontier");
     QCoreApplication::setApplicationVersion("1.0.0");
 
-    // Initialize database
+    // Initialize database (this connects AND creates tables)
     Frontier::Database db;
-    if (!db.connect("frontier_mining.db")) {
-        qDebug() << "Failed to connect to database:" << db.lastError();
-        return 1;
-    }
-
-    if (!db.createTables()) {
-        qDebug() << "Failed to create tables:" << db.lastError();
+    if (!db.initialize("frontier_mining.db")) {
+        qDebug() << "Failed to initialize database:" << db.lastError();
         return 1;
     }
 
