@@ -8,6 +8,7 @@
 #include "fuellogwidget.h"
 #include "materialmovementtab.h"
 #include "operationssettingstab.h"
+#include "inventorytab.h"
 
 #include <QVBoxLayout>
 #include <QLabel>
@@ -29,6 +30,10 @@ void OperationsWidget::setupUi()
     mainLayout->setContentsMargins(5, 5, 5, 5);
 
     m_subTabs = new QTabWidget();
+
+    // Inventory - ADD THIS (uses database from manager)
+    m_inventoryTab = new InventoryTab(m_manager->database(), this);
+    m_subTabs->addTab(m_inventoryTab, "Inventory");
 
     // Equipment Operations
     m_subTabs->addTab(new EquipmentOperationsTab(m_manager, this), "Equipment");

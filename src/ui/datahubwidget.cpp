@@ -7,6 +7,7 @@
 #include "additemdialog.h"
 #include "vehiclespecstab.h"
 #include "recipestab.h"
+#include "locationstab.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -52,8 +53,9 @@ void DataHubWidget::setupUi()
     m_recipesTab = new RecipesTab(m_database, this);
     m_subTabs->addTab(m_recipesTab, "Recipes");
     
-    // Placeholder for future
-    m_subTabs->addTab(new QLabel("Locations - Coming Soon"), "Locations");
+    // Locations tab (now functional!)
+    m_locationsTab = new LocationsTab(m_database, this);
+    m_subTabs->addTab(m_locationsTab, tr("Locations"));
 
     mainLayout->addWidget(m_subTabs);
 }
@@ -277,6 +279,11 @@ void DataHubWidget::refreshData()
     // Also refresh Recipes tab
     if (m_recipesTab) {
         m_recipesTab->refreshData();
+    }
+
+    // Also refresh Locations tab
+    if (m_locationsTab) {
+        m_locationsTab->refreshData();
     }
 }
 

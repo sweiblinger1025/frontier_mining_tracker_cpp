@@ -56,6 +56,7 @@ set(SOURCES
     src/core/itemimporter.cpp
     src/core/vehicleimporter.cpp
     src/core/recipeimporter.cpp
+    src/core/locationimporter.cpp
 
     # Core - Operations
     src/core/operationsmanager.cpp
@@ -75,10 +76,13 @@ set(SOURCES
     src/ui/operationssettingstab.cpp
     src/ui/fuellogwidget.cpp
     src/ui/materialmovementtab.cpp
+    src/ui/inventorytab.cpp
+
 
     # UI - Data Hub Subtabs
     src/ui/vehiclespecstab.cpp
     src/ui/recipestab.cpp
+    src/ui/locationstab.cpp
 
     # UI - Dialogs
     src/ui/additemdialog.cpp
@@ -92,6 +96,7 @@ set(HEADERS
     src/core/itemimporter.h
     src/core/vehicleimporter.h
     src/core/recipeimporter.h
+    src/core/locationimporter.h
 
     # Core - Operations
     src/core/operationsmanager.h
@@ -112,10 +117,12 @@ set(HEADERS
     src/ui/operationssettingstab.h
     src/ui/fuellogwidget.h
     src/ui/materialmovementtab.h
+    src/ui/inventorytab.h
 
     # UI - Data Hub Subtabs
     src/ui/vehiclespecstab.h
     src/ui/recipestab.h
+    src/ui/locationstab.h
 
     # UI - Dialogs
     src/ui/additemdialog.h
@@ -135,6 +142,7 @@ qt_add_executable(frontier_mining_tracker_cpp
     ${HEADERS}
     ${UIS}
     ${RESOURCES}
+
 )
 
 set_target_properties(frontier_mining_tracker_cpp PROPERTIES

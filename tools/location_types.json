@@ -1,0 +1,34 @@
+[
+  {
+    "id": 1,
+    "name": "Base"
+  },
+  {
+    "id": 2,
+    "name": "Drill Site"
+  },
+  {
+    "id": 3,
+    "name": "Feature"
+  },
+  {
+    "id": 4,
+    "name": "Infrastructure"
+  },
+  {
+    "id": 5,
+    "name": "Mine Site"
+  },
+  {
+    "id": 6,
+    "name": "Pad"
+  },
+  {
+    "id": 7,
+    "name": "Processing"
+  },
+  {
+    "id": 8,
+    "name": "Stockpile"
+  }
+]

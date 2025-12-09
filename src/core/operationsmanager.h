@@ -76,6 +76,9 @@ public:
     // Auto-calculate hours for all equipment in a session
     void autoCalculateSessionHours(int sessionId);
 
+    // Database access (for tabs that need direct DB access)
+    Database* database() const { return m_database; }
+
 signals:
     void unitSystemChanged(UnitSystem system);
     void fuelLogUpdated(const FuelLogEntry &entry);

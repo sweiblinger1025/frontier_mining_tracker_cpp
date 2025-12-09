@@ -1,0 +1,1274 @@
+[
+  {
+    "id": 1,
+    "name": "ARC - Main Base",
+    "map_id": 1,
+    "type_id": 1
+  },
+  {
+    "id": 2,
+    "name": "ARC - Fuel Station",
+    "map_id": 1,
+    "type_id": 4
+  },
+  {
+    "id": 3,
+    "name": "ARC - Mine Site 1",
+    "map_id": 1,
+    "type_id": 5
+  },
+  {
+    "id": 4,
+    "name": "ARC - Mine Site 2",
+    "map_id": 1,
+    "type_id": 5
+  },
+  {
+    "id": 5,
+    "name": "ARC - Mine Site North",
+    "map_id": 1,
+    "type_id": 5
+  },
+  {
+    "id": 6,
+    "name": "ARC - Mine Site South",
+    "map_id": 1,
+    "type_id": 5
+  },
+  {
+    "id": 7,
+    "name": "ARC - Drill Site 1",
+    "map_id": 1,
+    "type_id": 2
+  },
+  {
+    "id": 8,
+    "name": "ARC - Drill Site 2",
+    "map_id": 1,
+    "type_id": 2
+  },
+  {
+    "id": 9,
+    "name": "ARC - Main Stockpile",
+    "map_id": 1,
+    "type_id": 8
+  },
+  {
+    "id": 10,
+    "name": "ARC - North Stockpile",
+    "map_id": 1,
+    "type_id": 8
+  },
+  {
+    "id": 11,
+    "name": "ARC - Ore Stockpile",
+    "map_id": 1,
+    "type_id": 8
+  },
+  {
+    "id": 12,
+    "name": "ARC - Pad A",
+    "map_id": 1,
+    "type_id": 6
+  },
+  {
+    "id": 13,
+    "name": "ARC - Pad B",
+    "map_id": 1,
+    "type_id": 6
+  },
+  {
+    "id": 14,
+    "name": "ARC - Equipment Pad",
+    "map_id": 1,
+    "type_id": 6
+  },
+  {
+    "id": 15,
+    "name": "ARC - Processing Area",
+    "map_id": 1,
+    "type_id": 7
+  },
+  {
+    "id": 16,
+    "name": "ARC - Washplant Site",
+    "map_id": 1,
+    "type_id": 7
+  },
+  {
+    "id": 17,
+    "name": "ARC - Ice Field",
+    "map_id": 1,
+    "type_id": 3
+  },
+  {
+    "id": 18,
+    "name": "ARC - Glacier Deposit",
+    "map_id": 1,
+    "type_id": 3
+  },
+  {
+    "id": 19,
+    "name": "CPL - Main Base",
+    "map_id": 2,
+    "type_id": 1
+  },
+  {
+    "id": 20,
+    "name": "CPL - Fuel Station",
+    "map_id": 2,
+    "type_id": 4
+  },
+  {
+    "id": 21,
+    "name": "CPL - Plant Site",
+    "map_id": 2,
+    "type_id": 7
+  },
+  {
+    "id": 22,
+    "name": "CPL - Coal Plant",
+    "map_id": 2,
+    "type_id": 7
+  },
+  {
+    "id": 23,
+    "name": "CPL - Mine Site 1",
+    "map_id": 2,
+    "type_id": 5
+  },
+  {
+    "id": 24,
+    "name": "CPL - Mine Site 2",
+    "map_id": 2,
+    "type_id": 5
+  },
+  {
+    "id": 25,
+    "name": "CPL - Mine Site East",
+    "map_id": 2,
+    "type_id": 5
+  },
+  {
+    "id": 26,
+    "name": "CPL - Mine Site West",
+    "map_id": 2,
+    "type_id": 5
+  },
+  {
+    "id": 27,
+    "name": "CPL - Drill Site 1",
+    "map_id": 2,
+    "type_id": 2
+  },
+  {
+    "id": 28,
+    "name": "CPL - Main Stockpile",
+    "map_id": 2,
+    "type_id": 8
+  },
+  {
+    "id": 29,
+    "name": "CPL - Coal Stockpile",
+    "map_id": 2,
+    "type_id": 8
+  },
+  {
+    "id": 30,
+    "name": "CPL - Pad A",
+    "map_id": 2,
+    "type_id": 6
+  },
+  {
+    "id": 31,
+    "name": "CPL - Pad B",
+    "map_id": 2,
+    "type_id": 6
+  },
+  {
+    "id": 32,
+    "name": "CPL - Processing Area",
+    "map_id": 2,
+    "type_id": 7
+  },
+  {
+    "id": 33,
+    "name": "CPL - Plant Yard",
+    "map_id": 2,
+    "type_id": 7
+  },
+  {
+    "id": 34,
+    "name": "FFL - Main Base",
+    "map_id": 3,
+    "type_id": 1
+  },
+  {
+    "id": 35,
+    "name": "FFL - Base Camp",
+    "map_id": 3,
+    "type_id": 1
+  },
+  {
+    "id": 36,
+    "name": "FFL - Fuel Station",
+    "map_id": 3,
+    "type_id": 4
+  },
+  {
+    "id": 37,
+    "name": "FFL - Mine Site 1",
+    "map_id": 3,
+    "type_id": 5
+  },
+  {
+    "id": 38,
+    "name": "FFL - Mine Site 2",
+    "map_id": 3,
+    "type_id": 5
+  },
+  {
+    "id": 39,
+    "name": "FFL - Mine Site Central",
+    "map_id": 3,
+    "type_id": 5
+  },
+  {
+    "id": 40,
+    "name": "FFL - Mine Site East",
+    "map_id": 3,
+    "type_id": 5
+  },
+  {
+    "id": 41,
+    "name": "FFL - Mine Site West",
+    "map_id": 3,
+    "type_id": 5
+  },
+  {
+    "id": 42,
+    "name": "FFL - Drill Site 1",
+    "map_id": 3,
+    "type_id": 2
+  },
+  {
+    "id": 43,
+    "name": "FFL - Drill Site 2",
+    "map_id": 3,
+    "type_id": 2
+  },
+  {
+    "id": 44,
+    "name": "FFL - Main Stockpile",
+    "map_id": 3,
+    "type_id": 8
+  },
+  {
+    "id": 45,
+    "name": "FFL - East Stockpile",
+    "map_id": 3,
+    "type_id": 8
+  },
+  {
+    "id": 46,
+    "name": "FFL - West Stockpile",
+    "map_id": 3,
+    "type_id": 8
+  },
+  {
+    "id": 47,
+    "name": "FFL - Ore Stockpile",
+    "map_id": 3,
+    "type_id": 8
+  },
+  {
+    "id": 48,
+    "name": "FFL - Pad A",
+    "map_id": 3,
+    "type_id": 6
+  },
+  {
+    "id": 49,
+    "name": "FFL - Pad B",
+    "map_id": 3,
+    "type_id": 6
+  },
+  {
+    "id": 50,
+    "name": "FFL - Pad C",
+    "map_id": 3,
+    "type_id": 6
+  },
+  {
+    "id": 51,
+    "name": "FFL - Equipment Pad",
+    "map_id": 3,
+    "type_id": 6
+  },
+  {
+    "id": 52,
+    "name": "FFL - Processing Area",
+    "map_id": 3,
+    "type_id": 7
+  },
+  {
+    "id": 53,
+    "name": "FFL - Washplant Site",
+    "map_id": 3,
+    "type_id": 7
+  },
+  {
+    "id": 54,
+    "name": "FFL - East Clearing",
+    "map_id": 3,
+    "type_id": 3
+  },
+  {
+    "id": 55,
+    "name": "FFL - West Forest",
+    "map_id": 3,
+    "type_id": 3
+  },
+  {
+    "id": 56,
+    "name": "FHL - Main Base",
+    "map_id": 4,
+    "type_id": 1
+  },
+  {
+    "id": 57,
+    "name": "FHL - Base Camp",
+    "map_id": 4,
+    "type_id": 1
+  },
+  {
+    "id": 58,
+    "name": "FHL - Fuel Station",
+    "map_id": 4,
+    "type_id": 4
+  },
+  {
+    "id": 59,
+    "name": "FHL - Mine Site 1",
+    "map_id": 4,
+    "type_id": 5
+  },
+  {
+    "id": 60,
+    "name": "FHL - Mine Site 2",
+    "map_id": 4,
+    "type_id": 5
+  },
+  {
+    "id": 61,
+    "name": "FHL - Mine Site North",
+    "map_id": 4,
+    "type_id": 5
+  },
+  {
+    "id": 62,
+    "name": "FHL - Mine Site South",
+    "map_id": 4,
+    "type_id": 5
+  },
+  {
+    "id": 63,
+    "name": "FHL - Mine Site Hill Top",
+    "map_id": 4,
+    "type_id": 5
+  },
+  {
+    "id": 64,
+    "name": "FHL - Drill Site 1",
+    "map_id": 4,
+    "type_id": 2
+  },
+  {
+    "id": 65,
+    "name": "FHL - Drill Site 2",
+    "map_id": 4,
+    "type_id": 2
+  },
+  {
+    "id": 66,
+    "name": "FHL - Main Stockpile",
+    "map_id": 4,
+    "type_id": 8
+  },
+  {
+    "id": 67,
+    "name": "FHL - Hill Stockpile",
+    "map_id": 4,
+    "type_id": 8
+  },
+  {
+    "id": 68,
+    "name": "FHL - Valley Stockpile",
+    "map_id": 4,
+    "type_id": 8
+  },
+  {
+    "id": 69,
+    "name": "FHL - Ore Stockpile",
+    "map_id": 4,
+    "type_id": 8
+  },
+  {
+    "id": 70,
+    "name": "FHL - Pad A",
+    "map_id": 4,
+    "type_id": 6
+  },
+  {
+    "id": 71,
+    "name": "FHL - Pad B",
+    "map_id": 4,
+    "type_id": 6
+  },
+  {
+    "id": 72,
+    "name": "FHL - Equipment Pad",
+    "map_id": 4,
+    "type_id": 6
+  },
+  {
+    "id": 73,
+    "name": "FHL - Processing Area",
+    "map_id": 4,
+    "type_id": 7
+  },
+  {
+    "id": 74,
+    "name": "FHL - Washplant Site",
+    "map_id": 4,
+    "type_id": 7
+  },
+  {
+    "id": 75,
+    "name": "FHL - Upper Hills",
+    "map_id": 4,
+    "type_id": 3
+  },
+  {
+    "id": 76,
+    "name": "FHL - Lower Valley",
+    "map_id": 4,
+    "type_id": 3
+  },
+  {
+    "id": 77,
+    "name": "FHL - Ridge Site",
+    "map_id": 4,
+    "type_id": 3
+  },
+  {
+    "id": 78,
+    "name": "FQR - Main Base",
+    "map_id": 5,
+    "type_id": 1
+  },
+  {
+    "id": 79,
+    "name": "FQR - Fuel Station",
+    "map_id": 5,
+    "type_id": 4
+  },
+  {
+    "id": 80,
+    "name": "FQR - Mine Site 1",
+    "map_id": 5,
+    "type_id": 5
+  },
+  {
+    "id": 81,
+    "name": "FQR - Mine Site 2",
+    "map_id": 5,
+    "type_id": 5
+  },
+  {
+    "id": 82,
+    "name": "FQR - Mine Site North",
+    "map_id": 5,
+    "type_id": 5
+  },
+  {
+    "id": 83,
+    "name": "FQR - Mine Site South",
+    "map_id": 5,
+    "type_id": 5
+  },
+  {
+    "id": 84,
+    "name": "FQR - Mine Site Quarry",
+    "map_id": 5,
+    "type_id": 5
+  },
+  {
+    "id": 85,
+    "name": "FQR - Drill Site 1",
+    "map_id": 5,
+    "type_id": 2
+  },
+  {
+    "id": 86,
+    "name": "FQR - Main Stockpile",
+    "map_id": 5,
+    "type_id": 8
+  },
+  {
+    "id": 87,
+    "name": "FQR - Quarry Stockpile",
+    "map_id": 5,
+    "type_id": 8
+  },
+  {
+    "id": 88,
+    "name": "FQR - North Stockpile",
+    "map_id": 5,
+    "type_id": 8
+  },
+  {
+    "id": 89,
+    "name": "FQR - Ore Stockpile",
+    "map_id": 5,
+    "type_id": 8
+  },
+  {
+    "id": 90,
+    "name": "FQR - Pad A",
+    "map_id": 5,
+    "type_id": 6
+  },
+  {
+    "id": 91,
+    "name": "FQR - Pad B",
+    "map_id": 5,
+    "type_id": 6
+  },
+  {
+    "id": 92,
+    "name": "FQR - Equipment Pad",
+    "map_id": 5,
+    "type_id": 6
+  },
+  {
+    "id": 93,
+    "name": "FQR - Processing Area",
+    "map_id": 5,
+    "type_id": 7
+  },
+  {
+    "id": 94,
+    "name": "FQR - Washplant Site",
+    "map_id": 5,
+    "type_id": 7
+  },
+  {
+    "id": 95,
+    "name": "FQR - Quarry Pit",
+    "map_id": 5,
+    "type_id": 5
+  },
+  {
+    "id": 96,
+    "name": "FQR - East Vein",
+    "map_id": 5,
+    "type_id": 3
+  },
+  {
+    "id": 97,
+    "name": "FQR - West Deposit",
+    "map_id": 5,
+    "type_id": 3
+  },
+  {
+    "id": 98,
+    "name": "GFL - Main Base",
+    "map_id": 6,
+    "type_id": 1
+  },
+  {
+    "id": 99,
+    "name": "GFL - Base Camp",
+    "map_id": 6,
+    "type_id": 1
+  },
+  {
+    "id": 100,
+    "name": "GFL - Fuel Station",
+    "map_id": 6,
+    "type_id": 4
+  },
+  {
+    "id": 101,
+    "name": "GFL - Mine Site 1",
+    "map_id": 6,
+    "type_id": 5
+  },
+  {
+    "id": 102,
+    "name": "GFL - Mine Site 2",
+    "map_id": 6,
+    "type_id": 5
+  },
+  {
+    "id": 103,
+    "name": "GFL - Mine Site North",
+    "map_id": 6,
+    "type_id": 5
+  },
+  {
+    "id": 104,
+    "name": "GFL - Mine Site South",
+    "map_id": 6,
+    "type_id": 5
+  },
+  {
+    "id": 105,
+    "name": "GFL - Mine Site Central",
+    "map_id": 6,
+    "type_id": 5
+  },
+  {
+    "id": 106,
+    "name": "GFL - Drill Site 1",
+    "map_id": 6,
+    "type_id": 2
+  },
+  {
+    "id": 107,
+    "name": "GFL - Drill Site 2",
+    "map_id": 6,
+    "type_id": 2
+  },
+  {
+    "id": 108,
+    "name": "GFL - Drill Site 3",
+    "map_id": 6,
+    "type_id": 2
+  },
+  {
+    "id": 109,
+    "name": "GFL - Main Stockpile",
+    "map_id": 6,
+    "type_id": 8
+  },
+  {
+    "id": 110,
+    "name": "GFL - North Stockpile",
+    "map_id": 6,
+    "type_id": 8
+  },
+  {
+    "id": 111,
+    "name": "GFL - South Stockpile",
+    "map_id": 6,
+    "type_id": 8
+  },
+  {
+    "id": 112,
+    "name": "GFL - Ore Stockpile",
+    "map_id": 6,
+    "type_id": 8
+  },
+  {
+    "id": 113,
+    "name": "GFL - Pad A",
+    "map_id": 6,
+    "type_id": 6
+  },
+  {
+    "id": 114,
+    "name": "GFL - Pad B",
+    "map_id": 6,
+    "type_id": 6
+  },
+  {
+    "id": 115,
+    "name": "GFL - Pad C",
+    "map_id": 6,
+    "type_id": 6
+  },
+  {
+    "id": 116,
+    "name": "GFL - Equipment Pad",
+    "map_id": 6,
+    "type_id": 6
+  },
+  {
+    "id": 117,
+    "name": "GFL - Processing Area",
+    "map_id": 6,
+    "type_id": 7
+  },
+  {
+    "id": 118,
+    "name": "GFL - Washplant Site",
+    "map_id": 6,
+    "type_id": 7
+  },
+  {
+    "id": 119,
+    "name": "GFL - Plains Central",
+    "map_id": 6,
+    "type_id": 3
+  },
+  {
+    "id": 120,
+    "name": "GFL - Grassland East",
+    "map_id": 6,
+    "type_id": 3
+  },
+  {
+    "id": 121,
+    "name": "IMP - Main Base",
+    "map_id": 7,
+    "type_id": 1
+  },
+  {
+    "id": 122,
+    "name": "IMP - Fuel Station",
+    "map_id": 7,
+    "type_id": 4
+  },
+  {
+    "id": 123,
+    "name": "IMP - Mine Site Upper",
+    "map_id": 7,
+    "type_id": 5
+  },
+  {
+    "id": 124,
+    "name": "IMP - Mine Site Lower",
+    "map_id": 7,
+    "type_id": 5
+  },
+  {
+    "id": 125,
+    "name": "IMP - Mine Site 1",
+    "map_id": 7,
+    "type_id": 5
+  },
+  {
+    "id": 126,
+    "name": "IMP - Mine Site 2",
+    "map_id": 7,
+    "type_id": 5
+  },
+  {
+    "id": 127,
+    "name": "IMP - Main Pit",
+    "map_id": 7,
+    "type_id": 5
+  },
+  {
+    "id": 128,
+    "name": "IMP - Upper Pit",
+    "map_id": 7,
+    "type_id": 5
+  },
+  {
+    "id": 129,
+    "name": "IMP - Lower Pit",
+    "map_id": 7,
+    "type_id": 5
+  },
+  {
+    "id": 130,
+    "name": "IMP - Drill Site 1",
+    "map_id": 7,
+    "type_id": 2
+  },
+  {
+    "id": 131,
+    "name": "IMP - Main Stockpile",
+    "map_id": 7,
+    "type_id": 8
+  },
+  {
+    "id": 132,
+    "name": "IMP - Upper Stockpile",
+    "map_id": 7,
+    "type_id": 8
+  },
+  {
+    "id": 133,
+    "name": "IMP - Lower Stockpile",
+    "map_id": 7,
+    "type_id": 8
+  },
+  {
+    "id": 134,
+    "name": "IMP - Iron Stockpile",
+    "map_id": 7,
+    "type_id": 8
+  },
+  {
+    "id": 135,
+    "name": "IMP - Ore Stockpile",
+    "map_id": 7,
+    "type_id": 8
+  },
+  {
+    "id": 136,
+    "name": "IMP - Pad A",
+    "map_id": 7,
+    "type_id": 6
+  },
+  {
+    "id": 137,
+    "name": "IMP - Pad B",
+    "map_id": 7,
+    "type_id": 6
+  },
+  {
+    "id": 138,
+    "name": "IMP - Equipment Pad",
+    "map_id": 7,
+    "type_id": 6
+  },
+  {
+    "id": 139,
+    "name": "IMP - Processing Area",
+    "map_id": 7,
+    "type_id": 7
+  },
+  {
+    "id": 140,
+    "name": "IMP - Crusher Site",
+    "map_id": 7,
+    "type_id": 7
+  },
+  {
+    "id": 141,
+    "name": "IMP - Mountain Base",
+    "map_id": 7,
+    "type_id": 3
+  },
+  {
+    "id": 142,
+    "name": "IMP - Pit Edge",
+    "map_id": 7,
+    "type_id": 5
+  },
+  {
+    "id": 143,
+    "name": "MTN - HQ",
+    "map_id": 8,
+    "type_id": 1
+  },
+  {
+    "id": 144,
+    "name": "MTN - Main Base",
+    "map_id": 8,
+    "type_id": 1
+  },
+  {
+    "id": 145,
+    "name": "MTN - Town Center",
+    "map_id": 8,
+    "type_id": 3
+  },
+  {
+    "id": 146,
+    "name": "MTN - Fuel Station",
+    "map_id": 8,
+    "type_id": 4
+  },
+  {
+    "id": 147,
+    "name": "MTN - Mine Site 1",
+    "map_id": 8,
+    "type_id": 5
+  },
+  {
+    "id": 148,
+    "name": "MTN - Mine Site 2",
+    "map_id": 8,
+    "type_id": 5
+  },
+  {
+    "id": 149,
+    "name": "MTN - Mine Site North",
+    "map_id": 8,
+    "type_id": 5
+  },
+  {
+    "id": 150,
+    "name": "MTN - Mine Site South",
+    "map_id": 8,
+    "type_id": 5
+  },
+  {
+    "id": 151,
+    "name": "MTN - Drill Site 1",
+    "map_id": 8,
+    "type_id": 2
+  },
+  {
+    "id": 152,
+    "name": "MTN - Main Stockpile",
+    "map_id": 8,
+    "type_id": 8
+  },
+  {
+    "id": 153,
+    "name": "MTN - Town Stockpile",
+    "map_id": 8,
+    "type_id": 8
+  },
+  {
+    "id": 154,
+    "name": "MTN - Ore Stockpile",
+    "map_id": 8,
+    "type_id": 8
+  },
+  {
+    "id": 155,
+    "name": "MTN - Pad A",
+    "map_id": 8,
+    "type_id": 6
+  },
+  {
+    "id": 156,
+    "name": "MTN - Pad B",
+    "map_id": 8,
+    "type_id": 6
+  },
+  {
+    "id": 157,
+    "name": "MTN - Equipment Pad",
+    "map_id": 8,
+    "type_id": 6
+  },
+  {
+    "id": 158,
+    "name": "MTN - Processing Area",
+    "map_id": 8,
+    "type_id": 7
+  },
+  {
+    "id": 159,
+    "name": "MTN - Washplant Site",
+    "map_id": 8,
+    "type_id": 7
+  },
+  {
+    "id": 160,
+    "name": "MTN - Residential Area",
+    "map_id": 8,
+    "type_id": 3
+  },
+  {
+    "id": 161,
+    "name": "MTN - Industrial Zone",
+    "map_id": 8,
+    "type_id": 3
+  },
+  {
+    "id": 162,
+    "name": "MTN - Town Square",
+    "map_id": 8,
+    "type_id": 3
+  },
+  {
+    "id": 163,
+    "name": "QRY - Main Base",
+    "map_id": 9,
+    "type_id": 1
+  },
+  {
+    "id": 164,
+    "name": "QRY - Main Site",
+    "map_id": 9,
+    "type_id": 3
+  },
+  {
+    "id": 165,
+    "name": "QRY - Fuel Station",
+    "map_id": 9,
+    "type_id": 4
+  },
+  {
+    "id": 166,
+    "name": "QRY - Mine Site North",
+    "map_id": 9,
+    "type_id": 5
+  },
+  {
+    "id": 167,
+    "name": "QRY - Mine Site South",
+    "map_id": 9,
+    "type_id": 5
+  },
+  {
+    "id": 168,
+    "name": "QRY - Mine Site East",
+    "map_id": 9,
+    "type_id": 5
+  },
+  {
+    "id": 169,
+    "name": "QRY - Mine Site West",
+    "map_id": 9,
+    "type_id": 5
+  },
+  {
+    "id": 170,
+    "name": "QRY - Mine Site Center",
+    "map_id": 9,
+    "type_id": 5
+  },
+  {
+    "id": 171,
+    "name": "QRY - Drill Site 1",
+    "map_id": 9,
+    "type_id": 2
+  },
+  {
+    "id": 172,
+    "name": "QRY - Drill Site 2",
+    "map_id": 9,
+    "type_id": 2
+  },
+  {
+    "id": 173,
+    "name": "QRY - Main Stockpile",
+    "map_id": 9,
+    "type_id": 8
+  },
+  {
+    "id": 174,
+    "name": "QRY - North Pile",
+    "map_id": 9,
+    "type_id": 3
+  },
+  {
+    "id": 175,
+    "name": "QRY - North Stockpile",
+    "map_id": 9,
+    "type_id": 8
+  },
+  {
+    "id": 176,
+    "name": "QRY - South Stockpile",
+    "map_id": 9,
+    "type_id": 8
+  },
+  {
+    "id": 177,
+    "name": "QRY - East Stockpile",
+    "map_id": 9,
+    "type_id": 8
+  },
+  {
+    "id": 178,
+    "name": "QRY - Ore Stockpile",
+    "map_id": 9,
+    "type_id": 8
+  },
+  {
+    "id": 179,
+    "name": "QRY - Pad A",
+    "map_id": 9,
+    "type_id": 6
+  },
+  {
+    "id": 180,
+    "name": "QRY - Pad B",
+    "map_id": 9,
+    "type_id": 6
+  },
+  {
+    "id": 181,
+    "name": "QRY - Pad C",
+    "map_id": 9,
+    "type_id": 6
+  },
+  {
+    "id": 182,
+    "name": "QRY - Equipment Pad",
+    "map_id": 9,
+    "type_id": 6
+  },
+  {
+    "id": 183,
+    "name": "QRY - Processing Area",
+    "map_id": 9,
+    "type_id": 7
+  },
+  {
+    "id": 184,
+    "name": "QRY - Washplant Site",
+    "map_id": 9,
+    "type_id": 7
+  },
+  {
+    "id": 185,
+    "name": "QRY - Crusher Site",
+    "map_id": 9,
+    "type_id": 7
+  },
+  {
+    "id": 186,
+    "name": "QRY - North Vein",
+    "map_id": 9,
+    "type_id": 3
+  },
+  {
+    "id": 187,
+    "name": "QRY - South Deposit",
+    "map_id": 9,
+    "type_id": 3
+  },
+  {
+    "id": 188,
+    "name": "QRY - West Outcrop",
+    "map_id": 9,
+    "type_id": 3
+  },
+  {
+    "id": 189,
+    "name": "QRY - East Ridge",
+    "map_id": 9,
+    "type_id": 3
+  },
+  {
+    "id": 190,
+    "name": "SCA - Main Base",
+    "map_id": 10,
+    "type_id": 1
+  },
+  {
+    "id": 191,
+    "name": "SCA - Base Camp",
+    "map_id": 10,
+    "type_id": 1
+  },
+  {
+    "id": 192,
+    "name": "SCA - Fuel Station",
+    "map_id": 10,
+    "type_id": 4
+  },
+  {
+    "id": 193,
+    "name": "SCA - Mine Site 1",
+    "map_id": 10,
+    "type_id": 5
+  },
+  {
+    "id": 194,
+    "name": "SCA - Mine Site 2",
+    "map_id": 10,
+    "type_id": 5
+  },
+  {
+    "id": 195,
+    "name": "SCA - Mine Site North",
+    "map_id": 10,
+    "type_id": 5
+  },
+  {
+    "id": 196,
+    "name": "SCA - Mine Site South",
+    "map_id": 10,
+    "type_id": 5
+  },
+  {
+    "id": 197,
+    "name": "SCA - Mine Site Mountain",
+    "map_id": 10,
+    "type_id": 5
+  },
+  {
+    "id": 198,
+    "name": "SCA - Mine Site Valley",
+    "map_id": 10,
+    "type_id": 5
+  },
+  {
+    "id": 199,
+    "name": "SCA - Drill Site 1",
+    "map_id": 10,
+    "type_id": 2
+  },
+  {
+    "id": 200,
+    "name": "SCA - Drill Site 2",
+    "map_id": 10,
+    "type_id": 2
+  },
+  {
+    "id": 201,
+    "name": "SCA - Main Stockpile",
+    "map_id": 10,
+    "type_id": 8
+  },
+  {
+    "id": 202,
+    "name": "SCA - Mountain Stockpile",
+    "map_id": 10,
+    "type_id": 8
+  },
+  {
+    "id": 203,
+    "name": "SCA - Valley Stockpile",
+    "map_id": 10,
+    "type_id": 8
+  },
+  {
+    "id": 204,
+    "name": "SCA - Ore Stockpile",
+    "map_id": 10,
+    "type_id": 8
+  },
+  {
+    "id": 205,
+    "name": "SCA - Pad A",
+    "map_id": 10,
+    "type_id": 6
+  },
+  {
+    "id": 206,
+    "name": "SCA - Pad B",
+    "map_id": 10,
+    "type_id": 6
+  },
+  {
+    "id": 207,
+    "name": "SCA - Equipment Pad",
+    "map_id": 10,
+    "type_id": 6
+  },
+  {
+    "id": 208,
+    "name": "SCA - Processing Area",
+    "map_id": 10,
+    "type_id": 7
+  },
+  {
+    "id": 209,
+    "name": "SCA - Washplant Site",
+    "map_id": 10,
+    "type_id": 7
+  },
+  {
+    "id": 210,
+    "name": "SCA - Mountain Ridge",
+    "map_id": 10,
+    "type_id": 3
+  },
+  {
+    "id": 211,
+    "name": "SCA - Valley Floor",
+    "map_id": 10,
+    "type_id": 3
+  },
+  {
+    "id": 212,
+    "name": "SCA - Peak Site",
+    "map_id": 10,
+    "type_id": 3
+  }
+]

@@ -122,6 +122,59 @@ bool Database::createTables()
         return false;
     }
 
+    // Location tables
+    if (!createLocationTables()) {
+        return false;
+    }
+
+    // Inventory tables
+    if (!createInventoryTables()) {
+        return false;
+    }
+
+    return true;
+}
+
+bool Database::createInventoryTables()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    // Inventory table - one record per item (global pool)
+    if (!query.exec(R"(
+        CREATE TABLE IF NOT EXISTS inventory (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            item_id INTEGER NOT NULL UNIQUE,
+            quantity INTEGER DEFAULT 0,
+            location_id INTEGER,
+            last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (item_id) REFERENCES items(id),
+            FOREIGN KEY (location_id) REFERENCES locations(id)
+        )
+    )")) {
+        qWarning() << "Failed to create inventory table:" << query.lastError().text();
+        return false;
+    }
+
+    // Oil tracking table (single row for settings)
+    if (!query.exec(R"(
+        CREATE TABLE IF NOT EXISTS oil_tracking (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            oil_cap INTEGER DEFAULT 10000,
+            total_oil_sold INTEGER DEFAULT 0,
+            last_reset TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    )")) {
+        qWarning() << "Failed to create oil_tracking table:" << query.lastError().text();
+        return false;
+    }
+
+    // Initialize oil tracking with default values if empty
+    if (!query.exec("INSERT OR IGNORE INTO oil_tracking (id, oil_cap, total_oil_sold) VALUES (1, 10000, 0)")) {
+        qWarning() << "Failed to initialize oil_tracking:" << query.lastError().text();
+        return false;
+    }
+
     return true;
 }
 
@@ -1636,6 +1689,946 @@ std::optional<Item> Database::getItemByName(const QString &name)
     item.notes = query.value("notes").toString();
 
     return item;
+}
+
+// =============================================================================
+// Location Tables Creation
+// =============================================================================
+
+bool Database::createLocationTables()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    // Maps table
+    if (!query.exec(R"(
+        CREATE TABLE IF NOT EXISTS maps (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            abbrev TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL UNIQUE
+        )
+    )")) {
+        qWarning() << "Failed to create maps table:" << query.lastError().text();
+        return false;
+    }
+
+    // Location types table
+    if (!query.exec(R"(
+        CREATE TABLE IF NOT EXISTS location_types (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE
+        )
+    )")) {
+        qWarning() << "Failed to create location_types table:" << query.lastError().text();
+        return false;
+    }
+
+    // Locations table
+    if (!query.exec(R"(
+        CREATE TABLE IF NOT EXISTS locations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            map_id INTEGER NOT NULL,
+            type_id INTEGER NOT NULL,
+            FOREIGN KEY (map_id) REFERENCES maps(id),
+            FOREIGN KEY (type_id) REFERENCES location_types(id)
+        )
+    )")) {
+        qWarning() << "Failed to create locations table:" << query.lastError().text();
+        return false;
+    }
+
+    return true;
+}
+
+// =============================================================================
+// Map CRUD
+// =============================================================================
+
+int Database::addMap(const Map &map)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        INSERT INTO maps (abbrev, name)
+        VALUES (:abbrev, :name)
+    )");
+    query.bindValue(":abbrev", map.abbrev);
+    query.bindValue(":name", map.name);
+
+    if (!query.exec()) {
+        m_lastError = query.lastError().text();
+        qWarning() << "Failed to add map:" << m_lastError;
+        return -1;
+    }
+
+    return query.lastInsertId().toInt();
+}
+
+std::optional<Map> Database::getMap(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("SELECT * FROM maps WHERE id = :id");
+    query.bindValue(":id", id);
+
+    if (!query.exec() || !query.next()) {
+        return std::nullopt;
+    }
+
+    Map map;
+    map.id = query.value("id").toInt();
+    map.abbrev = query.value("abbrev").toString();
+    map.name = query.value("name").toString();
+
+    return map;
+}
+
+std::optional<Map> Database::getMapByAbbrev(const QString &abbrev)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("SELECT * FROM maps WHERE abbrev = :abbrev");
+    query.bindValue(":abbrev", abbrev);
+
+    if (!query.exec() || !query.next()) {
+        return std::nullopt;
+    }
+
+    Map map;
+    map.id = query.value("id").toInt();
+    map.abbrev = query.value("abbrev").toString();
+    map.name = query.value("name").toString();
+
+    return map;
+}
+
+QVector<Map> Database::getAllMaps()
+{
+    QVector<Map> maps;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec("SELECT * FROM maps ORDER BY abbrev")) {
+        qWarning() << "Failed to get maps:" << query.lastError().text();
+        return maps;
+    }
+
+    while (query.next()) {
+        Map map;
+        map.id = query.value("id").toInt();
+        map.abbrev = query.value("abbrev").toString();
+        map.name = query.value("name").toString();
+        maps.append(map);
+    }
+
+    return maps;
+}
+
+bool Database::deleteMap(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("DELETE FROM maps WHERE id = :id");
+    query.bindValue(":id", id);
+
+    return query.exec();
+}
+
+bool Database::clearAllMaps()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    // Clear locations first (foreign key constraint)
+    if (!query.exec("DELETE FROM locations")) {
+        return false;
+    }
+    if (!query.exec("DELETE FROM maps")) {
+        return false;
+    }
+
+    return true;
+}
+
+// =============================================================================
+// LocationType CRUD
+// =============================================================================
+
+int Database::addLocationType(const LocationType &type)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("INSERT INTO location_types (name) VALUES (:name)");
+    query.bindValue(":name", type.name);
+
+    if (!query.exec()) {
+        m_lastError = query.lastError().text();
+        qWarning() << "Failed to add location type:" << m_lastError;
+        return -1;
+    }
+
+    return query.lastInsertId().toInt();
+}
+
+std::optional<LocationType> Database::getLocationType(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("SELECT * FROM location_types WHERE id = :id");
+    query.bindValue(":id", id);
+
+    if (!query.exec() || !query.next()) {
+        return std::nullopt;
+    }
+
+    LocationType type;
+    type.id = query.value("id").toInt();
+    type.name = query.value("name").toString();
+
+    return type;
+}
+
+std::optional<LocationType> Database::getLocationTypeByName(const QString &name)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("SELECT * FROM location_types WHERE name = :name");
+    query.bindValue(":name", name);
+
+    if (!query.exec() || !query.next()) {
+        return std::nullopt;
+    }
+
+    LocationType type;
+    type.id = query.value("id").toInt();
+    type.name = query.value("name").toString();
+
+    return type;
+}
+
+QVector<LocationType> Database::getAllLocationTypes()
+{
+    QVector<LocationType> types;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec("SELECT * FROM location_types ORDER BY name")) {
+        qWarning() << "Failed to get location types:" << query.lastError().text();
+        return types;
+    }
+
+    while (query.next()) {
+        LocationType type;
+        type.id = query.value("id").toInt();
+        type.name = query.value("name").toString();
+        types.append(type);
+    }
+
+    return types;
+}
+
+bool Database::deleteLocationType(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("DELETE FROM location_types WHERE id = :id");
+    query.bindValue(":id", id);
+
+    return query.exec();
+}
+
+bool Database::clearAllLocationTypes()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    // Clear locations first (foreign key constraint)
+    if (!query.exec("DELETE FROM locations")) {
+        return false;
+    }
+    if (!query.exec("DELETE FROM location_types")) {
+        return false;
+    }
+
+    return true;
+}
+
+// =============================================================================
+// Location CRUD
+// =============================================================================
+
+int Database::addLocation(const Location &location)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        INSERT INTO locations (name, map_id, type_id)
+        VALUES (:name, :map_id, :type_id)
+    )");
+    query.bindValue(":name", location.name);
+    query.bindValue(":map_id", location.mapId);
+    query.bindValue(":type_id", location.typeId);
+
+    if (!query.exec()) {
+        m_lastError = query.lastError().text();
+        qWarning() << "Failed to add location:" << m_lastError;
+        return -1;
+    }
+
+    return query.lastInsertId().toInt();
+}
+
+std::optional<Location> Database::getLocation(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        SELECT l.*, m.abbrev as map_abbrev, m.name as map_name, t.name as type_name
+        FROM locations l
+        JOIN maps m ON l.map_id = m.id
+        JOIN location_types t ON l.type_id = t.id
+        WHERE l.id = :id
+    )");
+    query.bindValue(":id", id);
+
+    if (!query.exec() || !query.next()) {
+        return std::nullopt;
+    }
+
+    Location loc;
+    loc.id = query.value("id").toInt();
+    loc.name = query.value("name").toString();
+    loc.mapId = query.value("map_id").toInt();
+    loc.typeId = query.value("type_id").toInt();
+    loc.mapAbbrev = query.value("map_abbrev").toString();
+    loc.mapName = query.value("map_name").toString();
+    loc.typeName = query.value("type_name").toString();
+
+    return loc;
+}
+
+QVector<Location> Database::getAllLocations()
+{
+    QVector<Location> locations;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec(R"(
+        SELECT l.*, m.abbrev as map_abbrev, m.name as map_name, t.name as type_name
+        FROM locations l
+        JOIN maps m ON l.map_id = m.id
+        JOIN location_types t ON l.type_id = t.id
+        ORDER BY m.abbrev, l.name
+    )")) {
+        qWarning() << "Failed to get locations:" << query.lastError().text();
+        return locations;
+    }
+
+    while (query.next()) {
+        Location loc;
+        loc.id = query.value("id").toInt();
+        loc.name = query.value("name").toString();
+        loc.mapId = query.value("map_id").toInt();
+        loc.typeId = query.value("type_id").toInt();
+        loc.mapAbbrev = query.value("map_abbrev").toString();
+        loc.mapName = query.value("map_name").toString();
+        loc.typeName = query.value("type_name").toString();
+        locations.append(loc);
+    }
+
+    return locations;
+}
+
+QVector<Location> Database::getLocationsByMap(int mapId)
+{
+    QVector<Location> locations;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        SELECT l.*, m.abbrev as map_abbrev, m.name as map_name, t.name as type_name
+        FROM locations l
+        JOIN maps m ON l.map_id = m.id
+        JOIN location_types t ON l.type_id = t.id
+        WHERE l.map_id = :map_id
+        ORDER BY l.name
+    )");
+    query.bindValue(":map_id", mapId);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to get locations by map:" << query.lastError().text();
+        return locations;
+    }
+
+    while (query.next()) {
+        Location loc;
+        loc.id = query.value("id").toInt();
+        loc.name = query.value("name").toString();
+        loc.mapId = query.value("map_id").toInt();
+        loc.typeId = query.value("type_id").toInt();
+        loc.mapAbbrev = query.value("map_abbrev").toString();
+        loc.mapName = query.value("map_name").toString();
+        loc.typeName = query.value("type_name").toString();
+        locations.append(loc);
+    }
+
+    return locations;
+}
+
+QVector<Location> Database::getLocationsByType(int typeId)
+{
+    QVector<Location> locations;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        SELECT l.*, m.abbrev as map_abbrev, m.name as map_name, t.name as type_name
+        FROM locations l
+        JOIN maps m ON l.map_id = m.id
+        JOIN location_types t ON l.type_id = t.id
+        WHERE l.type_id = :type_id
+        ORDER BY m.abbrev, l.name
+    )");
+    query.bindValue(":type_id", typeId);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to get locations by type:" << query.lastError().text();
+        return locations;
+    }
+
+    while (query.next()) {
+        Location loc;
+        loc.id = query.value("id").toInt();
+        loc.name = query.value("name").toString();
+        loc.mapId = query.value("map_id").toInt();
+        loc.typeId = query.value("type_id").toInt();
+        loc.mapAbbrev = query.value("map_abbrev").toString();
+        loc.mapName = query.value("map_name").toString();
+        loc.typeName = query.value("type_name").toString();
+        locations.append(loc);
+    }
+
+    return locations;
+}
+
+QVector<Location> Database::getLocationsByMapAndType(int mapId, int typeId)
+{
+    QVector<Location> locations;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        SELECT l.*, m.abbrev as map_abbrev, m.name as map_name, t.name as type_name
+        FROM locations l
+        JOIN maps m ON l.map_id = m.id
+        JOIN location_types t ON l.type_id = t.id
+        WHERE l.map_id = :map_id AND l.type_id = :type_id
+        ORDER BY l.name
+    )");
+    query.bindValue(":map_id", mapId);
+    query.bindValue(":type_id", typeId);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to get locations by map and type:" << query.lastError().text();
+        return locations;
+    }
+
+    while (query.next()) {
+        Location loc;
+        loc.id = query.value("id").toInt();
+        loc.name = query.value("name").toString();
+        loc.mapId = query.value("map_id").toInt();
+        loc.typeId = query.value("type_id").toInt();
+        loc.mapAbbrev = query.value("map_abbrev").toString();
+        loc.mapName = query.value("map_name").toString();
+        loc.typeName = query.value("type_name").toString();
+        locations.append(loc);
+    }
+
+    return locations;
+}
+
+bool Database::deleteLocation(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("DELETE FROM locations WHERE id = :id");
+    query.bindValue(":id", id);
+
+    return query.exec();
+}
+
+bool Database::clearAllLocations()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    return query.exec("DELETE FROM locations");
+}
+
+// =============================================================================
+// Inventory CRUD
+// =============================================================================
+
+    int Database::addInventoryItem(const InventoryItem &item)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        INSERT INTO inventory (item_id, quantity, location_id, last_updated)
+        VALUES (:item_id, :quantity, :location_id, :last_updated)
+    )");
+    query.bindValue(":item_id", item.itemId);
+    query.bindValue(":quantity", item.quantity);
+    query.bindValue(":location_id", item.locationId.has_value() ? item.locationId.value() : QVariant());
+    query.bindValue(":last_updated", QDateTime::currentDateTime().toString(Qt::ISODate));
+
+    if (!query.exec()) {
+        m_lastError = query.lastError().text();
+        qWarning() << "Failed to add inventory item:" << m_lastError;
+        return -1;
+    }
+
+    return query.lastInsertId().toInt();
+}
+
+std::optional<InventoryItem> Database::getInventoryItem(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        SELECT inv.*,
+               i.name as item_name, i.code as item_code, i.category, i.sell_price_internal as unit_price,
+               l.name as location_name
+        FROM inventory inv
+        JOIN items i ON inv.item_id = i.id
+        LEFT JOIN locations l ON inv.location_id = l.id
+        WHERE inv.id = :id
+    )");
+    query.bindValue(":id", id);
+
+    if (!query.exec() || !query.next()) {
+        return std::nullopt;
+    }
+
+    InventoryItem item;
+    item.id = query.value("id").toInt();
+    item.itemId = query.value("item_id").toInt();
+    item.quantity = query.value("quantity").toInt();
+    if (!query.value("location_id").isNull()) {
+        item.locationId = query.value("location_id").toInt();
+    }
+    item.lastUpdated = QDateTime::fromString(query.value("last_updated").toString(), Qt::ISODate);
+    item.itemName = query.value("item_name").toString();
+    item.itemCode = query.value("item_code").toString();
+    item.category = query.value("category").toString();
+    item.unitPrice = query.value("unit_price").toDouble();
+    item.locationName = query.value("location_name").toString();
+
+    return item;
+}
+
+std::optional<InventoryItem> Database::getInventoryByItemId(int itemId)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        SELECT inv.*,
+               i.name as item_name, i.code as item_code, i.category, i.sell_price_internal as unit_price,
+               l.name as location_name
+        FROM inventory inv
+        JOIN items i ON inv.item_id = i.id
+        LEFT JOIN locations l ON inv.location_id = l.id
+        WHERE inv.item_id = :item_id
+    )");
+    query.bindValue(":item_id", itemId);
+
+    if (!query.exec() || !query.next()) {
+        return std::nullopt;
+    }
+
+    InventoryItem item;
+    item.id = query.value("id").toInt();
+    item.itemId = query.value("item_id").toInt();
+    item.quantity = query.value("quantity").toInt();
+    if (!query.value("location_id").isNull()) {
+        item.locationId = query.value("location_id").toInt();
+    }
+    item.lastUpdated = QDateTime::fromString(query.value("last_updated").toString(), Qt::ISODate);
+    item.itemName = query.value("item_name").toString();
+    item.itemCode = query.value("item_code").toString();
+    item.category = query.value("category").toString();
+    item.unitPrice = query.value("unit_price").toDouble();
+    item.locationName = query.value("location_name").toString();
+
+    return item;
+}
+
+std::optional<InventoryItem> Database::getInventoryByItemName(const QString &itemName)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        SELECT inv.*,
+               i.name as item_name, i.code as item_code, i.category, i.sell_price_internal as unit_price,
+               l.name as location_name
+        FROM inventory inv
+        JOIN items i ON inv.item_id = i.id
+        LEFT JOIN locations l ON inv.location_id = l.id
+        WHERE i.name = :item_name
+    )");
+    query.bindValue(":item_name", itemName);
+
+    if (!query.exec() || !query.next()) {
+        return std::nullopt;
+    }
+
+    InventoryItem item;
+    item.id = query.value("id").toInt();
+    item.itemId = query.value("item_id").toInt();
+    item.quantity = query.value("quantity").toInt();
+    if (!query.value("location_id").isNull()) {
+        item.locationId = query.value("location_id").toInt();
+    }
+    item.lastUpdated = QDateTime::fromString(query.value("last_updated").toString(), Qt::ISODate);
+    item.itemName = query.value("item_name").toString();
+    item.itemCode = query.value("item_code").toString();
+    item.category = query.value("category").toString();
+    item.unitPrice = query.value("unit_price").toDouble();
+    item.locationName = query.value("location_name").toString();
+
+    return item;
+}
+
+QVector<InventoryItem> Database::getAllInventory()
+{
+    QVector<InventoryItem> items;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec(R"(
+        SELECT inv.*,
+               i.name as item_name, i.code as item_code, i.category, i.sell_price_internal as unit_price,
+               l.name as location_name
+        FROM inventory inv
+        JOIN items i ON inv.item_id = i.id
+        LEFT JOIN locations l ON inv.location_id = l.id
+        ORDER BY i.category, i.name
+    )")) {
+        qWarning() << "Failed to get inventory:" << query.lastError().text();
+        return items;
+    }
+
+    while (query.next()) {
+        InventoryItem item;
+        item.id = query.value("id").toInt();
+        item.itemId = query.value("item_id").toInt();
+        item.quantity = query.value("quantity").toInt();
+        if (!query.value("location_id").isNull()) {
+            item.locationId = query.value("location_id").toInt();
+        }
+        item.lastUpdated = QDateTime::fromString(query.value("last_updated").toString(), Qt::ISODate);
+        item.itemName = query.value("item_name").toString();
+        item.itemCode = query.value("item_code").toString();
+        item.category = query.value("category").toString();
+        item.unitPrice = query.value("unit_price").toDouble();
+        item.locationName = query.value("location_name").toString();
+        items.append(item);
+    }
+
+    return items;
+}
+
+QVector<InventoryItem> Database::getInventoryByCategory(const QString &category)
+{
+    QVector<InventoryItem> items;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        SELECT inv.*,
+               i.name as item_name, i.code as item_code, i.category, i.sell_price_internal as unit_price,
+               l.name as location_name
+        FROM inventory inv
+        JOIN items i ON inv.item_id = i.id
+        LEFT JOIN locations l ON inv.location_id = l.id
+        WHERE i.category = :category
+        ORDER BY i.name
+    )");
+    query.bindValue(":category", category);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to get inventory by category:" << query.lastError().text();
+        return items;
+    }
+
+    while (query.next()) {
+        InventoryItem item;
+        item.id = query.value("id").toInt();
+        item.itemId = query.value("item_id").toInt();
+        item.quantity = query.value("quantity").toInt();
+        if (!query.value("location_id").isNull()) {
+            item.locationId = query.value("location_id").toInt();
+        }
+        item.lastUpdated = QDateTime::fromString(query.value("last_updated").toString(), Qt::ISODate);
+        item.itemName = query.value("item_name").toString();
+        item.itemCode = query.value("item_code").toString();
+        item.category = query.value("category").toString();
+        item.unitPrice = query.value("unit_price").toDouble();
+        item.locationName = query.value("location_name").toString();
+        items.append(item);
+    }
+
+    return items;
+}
+
+QVector<InventoryItem> Database::getInventoryByLocation(int locationId)
+{
+    QVector<InventoryItem> items;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        SELECT inv.*,
+               i.name as item_name, i.code as item_code, i.category, i.sell_price_internal as unit_price,
+               l.name as location_name
+        FROM inventory inv
+        JOIN items i ON inv.item_id = i.id
+        LEFT JOIN locations l ON inv.location_id = l.id
+        WHERE inv.location_id = :location_id
+        ORDER BY i.category, i.name
+    )");
+    query.bindValue(":location_id", locationId);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to get inventory by location:" << query.lastError().text();
+        return items;
+    }
+
+    while (query.next()) {
+        InventoryItem item;
+        item.id = query.value("id").toInt();
+        item.itemId = query.value("item_id").toInt();
+        item.quantity = query.value("quantity").toInt();
+        if (!query.value("location_id").isNull()) {
+            item.locationId = query.value("location_id").toInt();
+        }
+        item.lastUpdated = QDateTime::fromString(query.value("last_updated").toString(), Qt::ISODate);
+        item.itemName = query.value("item_name").toString();
+        item.itemCode = query.value("item_code").toString();
+        item.category = query.value("category").toString();
+        item.unitPrice = query.value("unit_price").toDouble();
+        item.locationName = query.value("location_name").toString();
+        items.append(item);
+    }
+
+    return items;
+}
+
+QVector<InventoryItem> Database::getInventoryWithStock()
+{
+    QVector<InventoryItem> items;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec(R"(
+        SELECT inv.*,
+               i.name as item_name, i.code as item_code, i.category, i.sell_price_internal as unit_price,
+               l.name as location_name
+        FROM inventory inv
+        JOIN items i ON inv.item_id = i.id
+        LEFT JOIN locations l ON inv.location_id = l.id
+        WHERE inv.quantity > 0
+        ORDER BY i.category, i.name
+    )")) {
+        qWarning() << "Failed to get inventory with stock:" << query.lastError().text();
+        return items;
+    }
+
+    while (query.next()) {
+        InventoryItem item;
+        item.id = query.value("id").toInt();
+        item.itemId = query.value("item_id").toInt();
+        item.quantity = query.value("quantity").toInt();
+        if (!query.value("location_id").isNull()) {
+            item.locationId = query.value("location_id").toInt();
+        }
+        item.lastUpdated = QDateTime::fromString(query.value("last_updated").toString(), Qt::ISODate);
+        item.itemName = query.value("item_name").toString();
+        item.itemCode = query.value("item_code").toString();
+        item.category = query.value("category").toString();
+        item.unitPrice = query.value("unit_price").toDouble();
+        item.locationName = query.value("location_name").toString();
+        items.append(item);
+    }
+
+    return items;
+}
+
+bool Database::updateInventoryQuantity(int id, int newQuantity)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        UPDATE inventory
+        SET quantity = :quantity, last_updated = :last_updated
+        WHERE id = :id
+    )");
+    query.bindValue(":quantity", newQuantity);
+    query.bindValue(":last_updated", QDateTime::currentDateTime().toString(Qt::ISODate));
+    query.bindValue(":id", id);
+
+    if (!query.exec()) {
+        m_lastError = query.lastError().text();
+        return false;
+    }
+    return query.numRowsAffected() > 0;
+}
+
+bool Database::adjustInventoryQuantity(int id, int delta)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        UPDATE inventory
+        SET quantity = MAX(0, quantity + :delta), last_updated = :last_updated
+        WHERE id = :id
+    )");
+    query.bindValue(":delta", delta);
+    query.bindValue(":last_updated", QDateTime::currentDateTime().toString(Qt::ISODate));
+    query.bindValue(":id", id);
+
+    if (!query.exec()) {
+        m_lastError = query.lastError().text();
+        return false;
+    }
+    return query.numRowsAffected() > 0;
+}
+
+bool Database::updateInventoryItem(const InventoryItem &item)
+{
+    if (!item.id.has_value()) {
+        return false;
+    }
+
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        UPDATE inventory
+        SET item_id = :item_id, quantity = :quantity, location_id = :location_id,
+            last_updated = :last_updated
+        WHERE id = :id
+    )");
+    query.bindValue(":item_id", item.itemId);
+    query.bindValue(":quantity", item.quantity);
+    query.bindValue(":location_id", item.locationId.has_value() ? item.locationId.value() : QVariant());
+    query.bindValue(":last_updated", QDateTime::currentDateTime().toString(Qt::ISODate));
+    query.bindValue(":id", item.id.value());
+
+    if (!query.exec()) {
+        m_lastError = query.lastError().text();
+        return false;
+    }
+    return query.numRowsAffected() > 0;
+}
+
+bool Database::deleteInventoryItem(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("DELETE FROM inventory WHERE id = :id");
+    query.bindValue(":id", id);
+
+    return query.exec();
+}
+
+bool Database::clearAllInventory()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    return query.exec("DELETE FROM inventory");
+}
+
+// =============================================================================
+// Oil Tracking CRUD
+// =============================================================================
+
+OilTracking Database::getOilTracking()
+{
+    OilTracking tracking;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (query.exec("SELECT * FROM oil_tracking WHERE id = 1") && query.next()) {
+        tracking.oilCap = query.value("oil_cap").toInt();
+        tracking.totalOilSold = query.value("total_oil_sold").toInt();
+        tracking.lastReset = QDateTime::fromString(query.value("last_reset").toString(), Qt::ISODate);
+    }
+
+    return tracking;
+}
+
+bool Database::saveOilTracking(const OilTracking &tracking)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        UPDATE oil_tracking
+        SET oil_cap = :oil_cap, total_oil_sold = :total_oil_sold
+        WHERE id = 1
+    )");
+    query.bindValue(":oil_cap", tracking.oilCap);
+    query.bindValue(":total_oil_sold", tracking.totalOilSold);
+
+    return query.exec();
+}
+
+bool Database::addOilSold(int quantity)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("UPDATE oil_tracking SET total_oil_sold = total_oil_sold + :qty WHERE id = 1");
+    query.bindValue(":qty", quantity);
+
+    return query.exec();
+}
+
+bool Database::resetOilTracking()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        UPDATE oil_tracking
+        SET total_oil_sold = 0, last_reset = :last_reset
+        WHERE id = 1
+    )");
+    query.bindValue(":last_reset", QDateTime::currentDateTime().toString(Qt::ISODate));
+
+    return query.exec();
 }
 
 // =============================================================================

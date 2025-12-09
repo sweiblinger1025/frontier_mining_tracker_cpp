@@ -196,6 +196,69 @@ struct Recipe {
     double marginPercent = 0;
 };
 
+// === Location Types ===
+
+struct Map {
+    std::optional<int> id;
+    QString abbrev;
+    QString name;
+};
+
+struct LocationType {
+    std::optional<int> id;
+    QString name;
+};
+
+struct Location {
+    std::optional<int> id;
+    QString name;
+    int mapId = 0;
+    int typeId = 0;
+
+    // Convenience fields (populated via JOIN)
+    QString mapAbbrev;
+    QString mapName;
+    QString typeName;
+};
+
+// === Inventory Items ===
+
+struct InventoryItem {
+    std::optional<int> id;
+    int itemId = 0;           // FK to items table
+    int quantity = 0;
+    std::optional<int> locationId;  // Optional FK to locations
+    QDateTime lastUpdated;
+
+    // Convenience fields (populated via JOIN)
+    QString itemName;
+    QString itemCode;
+    QString category;
+    double unitPrice = 0.0;
+    QString locationName;
+
+    // Computed fields
+    double totalValue() const { return quantity * unitPrice; }
+
+    QString stockStatus() const {
+        if (quantity == 0) return "Empty";
+        if (quantity <= 10) return "Low";
+        if (quantity <= 100) return "Good";
+        return "High";
+    }
+};
+
+struct OilTracking {
+    int oilCap = 10000;
+    int totalOilSold = 0;
+    QDateTime lastReset;
+
+    int remaining() const { return oilCap - totalOilSold; }
+    double percentUsed() const {
+        return oilCap > 0 ? (totalOilSold * 100.0 / oilCap) : 0.0;
+    }
+};
+
 } // namespace Frontier
 
 #endif // TYPES_H

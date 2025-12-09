@@ -26,6 +26,7 @@ private slots:
     void onImportItems();
     void onImportVehicles();
     void onImportRecipes();
+    void onImportLocations();
 
 private:
     Ui::MainWindow *ui;
@@ -50,6 +51,7 @@ private:
     QAction *m_importItemsAction;
     QAction *m_importVehiclesAction;
     QAction *m_importRecipesAction;
+    QAction *m_importLocationsAction;
 };
 
 #endif // MAINWINDOW_H

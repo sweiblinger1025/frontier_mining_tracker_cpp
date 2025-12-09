@@ -4,6 +4,7 @@
 #include "core/itemimporter.h"
 #include "core/vehicleimporter.h"
 #include "core/recipeimporter.h"
+#include "core/locationimporter.h"
 
 // Project headers
 #include "dashboardwidget.h"
@@ -91,6 +92,12 @@ MainWindow::MainWindow(Frontier::Database *database, QWidget *parent)
     connect(m_importRecipesAction, &QAction::triggered,
             this, &MainWindow::onImportRecipes);
     importMenu->addAction(m_importRecipesAction);
+
+    m_importLocationsAction = new QAction("&Locations...", this);
+    m_importLocationsAction->setStatusTip("Import Locations from JSON file");
+    connect(m_importLocationsAction, &QAction::triggered,
+            this, &MainWindow::onImportLocations);
+    importMenu->addAction(m_importLocationsAction);
 
     fileMenu->addSeparator();
 
@@ -351,6 +358,53 @@ void MainWindow::onImportRecipes()
             QString("Could not import recipes.\n\nError: %1")
                 .arg(importer.lastError())
             );
+    }
+}
+
+void MainWindow::onImportLocations()
+{
+    QString dir = QFileDialog::getExistingDirectory(
+        this,
+        tr("Select Locations Data Directory"),
+        QString(),
+        QFileDialog::ShowDirsOnly
+        );
+
+    if (dir.isEmpty()) {
+        return;
+    }
+
+    // Check required files exist
+    QDir locDir(dir);
+    if (!locDir.exists("maps.json") ||
+        !locDir.exists("location_types.json") ||
+        !locDir.exists("locations.json")) {
+        QMessageBox::warning(this, tr("Missing Files"),
+                             tr("The selected directory must contain:\n"
+                                "- maps.json\n"
+                                "- location_types.json\n"
+                                "- locations.json"));
+        return;
+    }
+
+    bool success = Frontier::LocationImporter::importFromDirectory(dir, m_database, true);
+
+    if (success) {
+        QMessageBox::information(this, tr("Import Complete"),
+                                 tr("Imported:\n"
+                                    "- %1 maps\n"
+                                    "- %2 location types\n"
+                                    "- %3 locations")
+                                     .arg(Frontier::LocationImporter::mapsImported())
+                                     .arg(Frontier::LocationImporter::typesImported())
+                                     .arg(Frontier::LocationImporter::locationsImported()));
+
+        // Refresh the Data Hub if it's visible
+        // You may need to emit a signal or call refreshData() on the LocationsTab
+    } else {
+        QMessageBox::warning(this, tr("Import Failed"),
+                             tr("Failed to import locations:\n%1")
+                                 .arg(Frontier::LocationImporter::lastError()));
     }
 }
 

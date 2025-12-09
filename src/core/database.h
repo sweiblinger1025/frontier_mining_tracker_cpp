@@ -103,10 +103,64 @@ public:
     QVector<RecipeIngredient> getIngredientsForRecipe(int recipeId);
     bool deleteIngredientsForRecipe(int recipeId);
 
+    // === Location Tables ===
+    bool createLocationTables();
+
+    // === Map CRUD ===
+    int addMap(const Map &map);
+    std::optional<Map> getMap(int id);
+    std::optional<Map> getMapByAbbrev(const QString &abbrev);
+    QVector<Map> getAllMaps();
+    bool deleteMap(int id);
+    bool clearAllMaps();
+
+    // === LocationType CRUD ===
+    int addLocationType(const LocationType &type);
+    std::optional<LocationType> getLocationType(int id);
+    std::optional<LocationType> getLocationTypeByName(const QString &name);
+    QVector<LocationType> getAllLocationTypes();
+    bool deleteLocationType(int id);
+    bool clearAllLocationTypes();
+
+    // === Location CRUD ===
+    int addLocation(const Location &location);
+    std::optional<Location> getLocation(int id);
+    QVector<Location> getAllLocations();
+    QVector<Location> getLocationsByMap(int mapId);
+    QVector<Location> getLocationsByType(int typeId);
+    QVector<Location> getLocationsByMapAndType(int mapId, int typeId);
+    bool deleteLocation(int id);
+    bool clearAllLocations();
+
+    // === Inventory Tables ===
+    bool createInventoryTables();
+
+    // === Inventory CRUD ===
+    int addInventoryItem(const InventoryItem &item);
+    std::optional<InventoryItem> getInventoryItem(int id);
+    std::optional<InventoryItem> getInventoryByItemId(int itemId);
+    std::optional<InventoryItem> getInventoryByItemName(const QString &itemName);
+    QVector<InventoryItem> getAllInventory();
+    QVector<InventoryItem> getInventoryByCategory(const QString &category);
+    QVector<InventoryItem> getInventoryByLocation(int locationId);
+    QVector<InventoryItem> getInventoryWithStock();  // quantity > 0
+    bool updateInventoryQuantity(int id, int newQuantity);
+    bool adjustInventoryQuantity(int id, int delta);  // Add/subtract
+    bool updateInventoryItem(const InventoryItem &item);
+    bool deleteInventoryItem(int id);
+    bool clearAllInventory();
+
+    // === Oil Tracking ===
+    OilTracking getOilTracking();
+    bool saveOilTracking(const OilTracking &tracking);
+    bool addOilSold(int quantity);  // Increment totalOilSold
+    bool resetOilTracking();
+
 private:
     bool createTables();
     bool createVehiclesTable();
     bool createRecipeTables();
+
 
     QString m_connectionName;
     QString m_lastError;

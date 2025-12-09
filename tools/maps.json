@@ -1,0 +1,52 @@
+[
+  {
+    "id": 1,
+    "abbrev": "ARC",
+    "name": "Arctic Winter"
+  },
+  {
+    "id": 2,
+    "abbrev": "CPL",
+    "name": "Coal Plant"
+  },
+  {
+    "id": 3,
+    "abbrev": "FFL",
+    "name": "Forest Flat"
+  },
+  {
+    "id": 4,
+    "abbrev": "FHL",
+    "name": "Forest Hills"
+  },
+  {
+    "id": 5,
+    "abbrev": "FQR",
+    "name": "Forest Quarry"
+  },
+  {
+    "id": 6,
+    "abbrev": "GFL",
+    "name": "Grass Flat"
+  },
+  {
+    "id": 7,
+    "abbrev": "IMP",
+    "name": "Iron Mountain Pit"
+  },
+  {
+    "id": 8,
+    "abbrev": "MTN",
+    "name": "Mine Town"
+  },
+  {
+    "id": 9,
+    "abbrev": "QRY",
+    "name": "Quarry"
+  },
+  {
+    "id": 10,
+    "abbrev": "SCA",
+    "name": "Scandinavia"
+  }
+]
