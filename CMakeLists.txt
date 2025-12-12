@@ -149,6 +149,8 @@ qt_add_executable(frontier_mining_tracker_cpp
     ${HEADERS}
     ${UIS}
     ${RESOURCES}
+    src/ui/shiftlogtab.h src/ui/shiftlogtab.cpp
+    src/ui/cycletimetab.h src/ui/cycletimetab.cpp
 
 
 

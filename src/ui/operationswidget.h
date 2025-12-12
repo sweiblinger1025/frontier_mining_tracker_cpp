@@ -13,6 +13,8 @@
 
 class InventoryTab;
 class ProductionTab;
+class ShiftLogTab;
+class CycleTimeTab;
 
 class OperationsWidget : public QWidget
 {
@@ -25,6 +27,8 @@ public:
     // Accessors for cross-tab integration
     InventoryTab* inventoryTab() const;
     ProductionTab* productionTab() const;
+    ShiftLogTab* shiftLogTab() const;
+    CycleTimeTab* cycleTimeTab() const;
 
 private:
     void setupUi();
@@ -33,6 +37,8 @@ private:
     QTabWidget *m_subTabs;
     InventoryTab *m_inventoryTab = nullptr;
     ProductionTab *m_productionTab = nullptr;
+    ShiftLogTab *m_shiftLogTab = nullptr;
+    CycleTimeTab *m_cycleTimeTab = nullptr;
 };
 
 #endif // OPERATIONSWIDGET_H

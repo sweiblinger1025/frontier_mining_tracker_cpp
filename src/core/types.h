@@ -248,6 +248,8 @@ struct InventoryItem {
     }
 };
 
+// === Oil Tracking ===
+
 struct OilTracking {
     int oilCap = 10000;
     int totalOilSold = 0;
@@ -258,6 +260,8 @@ struct OilTracking {
         return oilCap > 0 ? (totalOilSold * 100.0 / oilCap) : 0.0;
     }
 };
+
+// === Production Run ===
 
 struct ProductionRun {
     std::optional<int> id;
@@ -280,6 +284,85 @@ struct ProductionRun {
     double totalInputCost() const { return inputCost * quantity; }
     double totalOutputValue() const { return outputValue * quantity; }
     double profit() const { return totalOutputValue() - totalInputCost(); }
+};
+
+// === Shift Logs ===
+
+struct Shift {
+    std::optional<int> id;
+    QDateTime startTime;
+    QDateTime endTime;
+    QString weather;        // Optional: Clear, Rain, Storm, Fog, etc.
+    QString activities;     // What you did during the session
+    QString notes;          // Issues, incidents, thoughts
+
+    // Computed
+    int durationMinutes() const {
+        if (!startTime.isValid() || !endTime.isValid()) return 0;
+        return static_cast<int>(startTime.secsTo(endTime) / 60);
+    }
+
+    QString durationFormatted() const {
+        int mins = durationMinutes();
+        int hours = mins / 60;
+        int remainMins = mins % 60;
+        if (hours > 0) {
+            return QString("%1h %2m").arg(hours).arg(remainMins);
+        }
+        return QString("%1m").arg(mins);
+    }
+};
+
+// === Cycle Time ===
+
+struct CycleProfile {
+    std::optional<int> id;
+    QString name;               // "QRY-01 to Crusher A"
+    int sourceLocationId = 0;   // Optional FK to locations
+    int destLocationId = 0;     // Optional FK to locations
+    int vehicleId = 0;          // Optional FK to vehicles
+    QString notes;
+
+    // Convenience fields (populated via JOIN)
+    QString sourceLocationName;
+    QString destLocationName;
+    QString vehicleName;
+
+    // Statistics (calculated)
+    int recordCount = 0;
+    int avgTotalSeconds = 0;
+    int bestTotalSeconds = 0;
+    int worstTotalSeconds = 0;
+};
+
+struct CycleRecord {
+    std::optional<int> id;
+    int profileId = 0;
+    int loadSeconds = 0;        // Time to load
+    int haulSeconds = 0;        // Time to haul (loaded travel)
+    int dumpSeconds = 0;        // Time to dump/unload
+    int returnSeconds = 0;      // Time to return (empty travel)
+    int totalSeconds = 0;       // Computed: sum of all phases
+    QDateTime timestamp;
+    QString notes;
+
+    // Convenience fields
+    QString profileName;
+
+    // Computed helpers
+    int computeTotal() const {
+        return loadSeconds + haulSeconds + dumpSeconds + returnSeconds;
+    }
+
+    QString formatTime(int seconds) const {
+        int mins = seconds / 60;
+        int secs = seconds % 60;
+        return QString("%1:%2").arg(mins).arg(secs, 2, 10, QChar('0'));
+    }
+
+    QString totalFormatted() const {
+        return formatTime(totalSeconds);
+    }
 };
 
 } // namespace Frontier

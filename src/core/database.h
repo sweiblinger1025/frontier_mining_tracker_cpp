@@ -173,6 +173,44 @@ public:
     int getTotalProductionRuns();
     double getTotalValueCreated();
 
+    // === Shifts Table ===
+    bool createShiftsTable();
+
+    // === Shifts CRUD ===
+    int addShift(const Shift &shift);
+    std::optional<Shift> getShift(int id);
+    QVector<Shift> getAllShifts();
+    QVector<Shift> getShiftsByDateRange(const QDate &from, const QDate &to);
+    bool updateShift(const Shift &shift);
+    bool deleteShift(int id);
+    bool clearAllShifts();
+
+    // === Shift Statistics ===
+    int getTotalShiftCount();
+    int getTotalShiftMinutes();
+
+    // === Cycle Time Tables ===
+    bool createCycleProfilesTable();
+    bool createCycleRecordsTable();
+
+    // === Cycle Profiles CRUD ===
+    int addCycleProfile(const CycleProfile &profile);
+    std::optional<CycleProfile> getCycleProfile(int id);
+    QVector<CycleProfile> getAllCycleProfiles();
+    QVector<CycleProfile> getCycleProfilesWithStats();
+    bool updateCycleProfile(const CycleProfile &profile);
+    bool deleteCycleProfile(int id);
+
+    // === Cycle Records CRUD ===
+    int addCycleRecord(const CycleRecord &record);
+    std::optional<CycleRecord> getCycleRecord(int id);
+    QVector<CycleRecord> getAllCycleRecords();
+    QVector<CycleRecord> getCycleRecordsByProfile(int profileId);
+    bool updateCycleRecord(const CycleRecord &record);
+    bool deleteCycleRecord(int id);
+    bool clearCycleRecordsByProfile(int profileId);
+
+
 private:
     bool createTables();
     bool createVehiclesTable();

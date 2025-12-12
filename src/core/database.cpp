@@ -137,6 +137,19 @@ bool Database::createTables()
         return false;
     }
 
+    // Shifts table
+    if (!createShiftsTable()){
+        return false;
+    }
+
+
+    // Cycle time tables
+    if (!createCycleProfilesTable()){
+        return false;
+    }
+    if (!createCycleRecordsTable()){
+        return false;
+    }
     return true;
 }
 
@@ -290,6 +303,79 @@ bool Database::createProductionRunsTable()
         qWarning() << "Failed to create production_runs table:" << query.lastError().text();
         return false;
         }
+    return true;
+}
+
+bool Database::createShiftsTable()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec(R"(
+        CREATE TABLE IF NOT EXISTS shifts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            start_time TEXT NOT NULL,
+            end_time TEXT,
+            weather TEXT,
+            activities TEXT,
+            notes TEXT
+        )
+    )")) {
+        qWarning() << "Failed to create shifts table:" << query.lastError().text();
+        return false;
+    }
+
+    return true;
+}
+
+bool Database::createCycleProfilesTable()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec(R"(
+        CREATE TABLE IF NOT EXISTS cycle_profiles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            source_location_id INTEGER,
+            dest_location_id INTEGER,
+            vehicle_id INTEGER,
+            notes TEXT,
+            FOREIGN KEY (source_location_id) REFERENCES locations(id),
+            FOREIGN KEY (dest_location_id) REFERENCES locations(id),
+            FOREIGN KEY (vehicle_id) REFERENCES vehicles(id)
+        )
+    )")) {
+        qWarning() << "Failed to create cycle_profiles table:" << query.lastError().text();
+        return false;
+    }
+
+    return true;
+}
+
+bool Database::createCycleRecordsTable()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec(R"(
+        CREATE TABLE IF NOT EXISTS cycle_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            profile_id INTEGER NOT NULL,
+            load_seconds INTEGER DEFAULT 0,
+            haul_seconds INTEGER DEFAULT 0,
+            dump_seconds INTEGER DEFAULT 0,
+            return_seconds INTEGER DEFAULT 0,
+            total_seconds INTEGER DEFAULT 0,
+            timestamp TEXT NOT NULL,
+            notes TEXT,
+            FOREIGN KEY (profile_id) REFERENCES cycle_profiles(id) ON DELETE CASCADE
+        )
+    )")) {
+        qWarning() << "Failed to create cycle_records table:" << query.lastError().text();
+        return false;
+    }
+
     return true;
 }
 
@@ -2906,6 +2992,559 @@ double Database::getTotalValueCreated()
 {
     // This would need item prices - calculate externally
     return 0.0;
+}
+
+// =============================================================================
+// Add to database.cpp - Shifts CRUD
+// =============================================================================
+
+int Database::addShift(const Shift &shift)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        INSERT INTO shifts (start_time, end_time, weather, activities, notes)
+        VALUES (:start_time, :end_time, :weather, :activities, :notes)
+    )");
+    query.bindValue(":start_time", shift.startTime.toString(Qt::ISODate));
+    query.bindValue(":end_time", shift.endTime.isValid() ? shift.endTime.toString(Qt::ISODate) : QVariant());
+    query.bindValue(":weather", shift.weather);
+    query.bindValue(":activities", shift.activities);
+    query.bindValue(":notes", shift.notes);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to add shift:" << query.lastError().text();
+        return -1;
+    }
+
+    return query.lastInsertId().toInt();
+}
+
+std::optional<Shift> Database::getShift(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("SELECT * FROM shifts WHERE id = :id");
+    query.bindValue(":id", id);
+
+    if (!query.exec() || !query.next()) {
+        return std::nullopt;
+    }
+
+    Shift shift;
+    shift.id = query.value("id").toInt();
+    shift.startTime = QDateTime::fromString(query.value("start_time").toString(), Qt::ISODate);
+    shift.endTime = QDateTime::fromString(query.value("end_time").toString(), Qt::ISODate);
+    shift.weather = query.value("weather").toString();
+    shift.activities = query.value("activities").toString();
+    shift.notes = query.value("notes").toString();
+
+    return shift;
+}
+
+QVector<Shift> Database::getAllShifts()
+{
+    QVector<Shift> shifts;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec("SELECT * FROM shifts ORDER BY start_time DESC")) {
+        qWarning() << "Failed to get shifts:" << query.lastError().text();
+        return shifts;
+    }
+
+    while (query.next()) {
+        Shift shift;
+        shift.id = query.value("id").toInt();
+        shift.startTime = QDateTime::fromString(query.value("start_time").toString(), Qt::ISODate);
+        shift.endTime = QDateTime::fromString(query.value("end_time").toString(), Qt::ISODate);
+        shift.weather = query.value("weather").toString();
+        shift.activities = query.value("activities").toString();
+        shift.notes = query.value("notes").toString();
+        shifts.append(shift);
+    }
+
+    return shifts;
+}
+
+QVector<Shift> Database::getShiftsByDateRange(const QDate &from, const QDate &to)
+{
+    QVector<Shift> shifts;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        SELECT * FROM shifts
+        WHERE date(start_time) BETWEEN :from AND :to
+        ORDER BY start_time DESC
+    )");
+    query.bindValue(":from", from.toString(Qt::ISODate));
+    query.bindValue(":to", to.toString(Qt::ISODate));
+
+    if (!query.exec()) {
+        qWarning() << "Failed to get shifts by date:" << query.lastError().text();
+        return shifts;
+    }
+
+    while (query.next()) {
+        Shift shift;
+        shift.id = query.value("id").toInt();
+        shift.startTime = QDateTime::fromString(query.value("start_time").toString(), Qt::ISODate);
+        shift.endTime = QDateTime::fromString(query.value("end_time").toString(), Qt::ISODate);
+        shift.weather = query.value("weather").toString();
+        shift.activities = query.value("activities").toString();
+        shift.notes = query.value("notes").toString();
+        shifts.append(shift);
+    }
+
+    return shifts;
+}
+
+bool Database::updateShift(const Shift &shift)
+{
+    if (!shift.id.has_value()) {
+        return false;
+    }
+
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        UPDATE shifts
+        SET start_time = :start_time, end_time = :end_time, weather = :weather,
+            activities = :activities, notes = :notes
+        WHERE id = :id
+    )");
+    query.bindValue(":start_time", shift.startTime.toString(Qt::ISODate));
+    query.bindValue(":end_time", shift.endTime.isValid() ? shift.endTime.toString(Qt::ISODate) : QVariant());
+    query.bindValue(":weather", shift.weather);
+    query.bindValue(":activities", shift.activities);
+    query.bindValue(":notes", shift.notes);
+    query.bindValue(":id", shift.id.value());
+
+    if (!query.exec()) {
+        qWarning() << "Failed to update shift:" << query.lastError().text();
+        return false;
+    }
+    return query.numRowsAffected() > 0;
+}
+
+bool Database::deleteShift(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("DELETE FROM shifts WHERE id = :id");
+    query.bindValue(":id", id);
+
+    return query.exec();
+}
+
+bool Database::clearAllShifts()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    return query.exec("DELETE FROM shifts");
+}
+
+int Database::getTotalShiftCount()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (query.exec("SELECT COUNT(*) FROM shifts") && query.next()) {
+        return query.value(0).toInt();
+    }
+    return 0;
+}
+
+int Database::getTotalShiftMinutes()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    // Calculate total minutes from all shifts with valid end times
+    if (query.exec(R"(
+        SELECT SUM(
+            (julianday(end_time) - julianday(start_time)) * 24 * 60
+        ) FROM shifts WHERE end_time IS NOT NULL
+    )") && query.next()) {
+        return query.value(0).toInt();
+    }
+    return 0;
+}
+
+// =============================================================================
+// Add to database.cpp - Cycle Profiles CRUD
+// =============================================================================
+
+int Database::addCycleProfile(const CycleProfile &profile)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        INSERT INTO cycle_profiles (name, source_location_id, dest_location_id, vehicle_id, notes)
+        VALUES (:name, :source_location_id, :dest_location_id, :vehicle_id, :notes)
+    )");
+    query.bindValue(":name", profile.name);
+    query.bindValue(":source_location_id", profile.sourceLocationId > 0 ? profile.sourceLocationId : QVariant());
+    query.bindValue(":dest_location_id", profile.destLocationId > 0 ? profile.destLocationId : QVariant());
+    query.bindValue(":vehicle_id", profile.vehicleId > 0 ? profile.vehicleId : QVariant());
+    query.bindValue(":notes", profile.notes);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to add cycle profile:" << query.lastError().text();
+        return -1;
+    }
+
+    return query.lastInsertId().toInt();
+}
+
+std::optional<CycleProfile> Database::getCycleProfile(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        SELECT cp.*,
+               sl.name as source_name,
+               dl.name as dest_name,
+               v.name as vehicle_name
+        FROM cycle_profiles cp
+        LEFT JOIN locations sl ON cp.source_location_id = sl.id
+        LEFT JOIN locations dl ON cp.dest_location_id = dl.id
+        LEFT JOIN vehicles v ON cp.vehicle_id = v.id
+        WHERE cp.id = :id
+    )");
+    query.bindValue(":id", id);
+
+    if (!query.exec() || !query.next()) {
+        return std::nullopt;
+    }
+
+    CycleProfile profile;
+    profile.id = query.value("id").toInt();
+    profile.name = query.value("name").toString();
+    profile.sourceLocationId = query.value("source_location_id").toInt();
+    profile.destLocationId = query.value("dest_location_id").toInt();
+    profile.vehicleId = query.value("vehicle_id").toInt();
+    profile.notes = query.value("notes").toString();
+    profile.sourceLocationName = query.value("source_name").toString();
+    profile.destLocationName = query.value("dest_name").toString();
+    profile.vehicleName = query.value("vehicle_name").toString();
+
+    return profile;
+}
+
+QVector<CycleProfile> Database::getAllCycleProfiles()
+{
+    QVector<CycleProfile> profiles;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec(R"(
+        SELECT cp.*,
+               sl.name as source_name,
+               dl.name as dest_name,
+               v.name as vehicle_name
+        FROM cycle_profiles cp
+        LEFT JOIN locations sl ON cp.source_location_id = sl.id
+        LEFT JOIN locations dl ON cp.dest_location_id = dl.id
+        LEFT JOIN vehicles v ON cp.vehicle_id = v.id
+        ORDER BY cp.name
+    )")) {
+        qWarning() << "Failed to get cycle profiles:" << query.lastError().text();
+        return profiles;
+    }
+
+    while (query.next()) {
+        CycleProfile profile;
+        profile.id = query.value("id").toInt();
+        profile.name = query.value("name").toString();
+        profile.sourceLocationId = query.value("source_location_id").toInt();
+        profile.destLocationId = query.value("dest_location_id").toInt();
+        profile.vehicleId = query.value("vehicle_id").toInt();
+        profile.notes = query.value("notes").toString();
+        profile.sourceLocationName = query.value("source_name").toString();
+        profile.destLocationName = query.value("dest_name").toString();
+        profile.vehicleName = query.value("vehicle_name").toString();
+        profiles.append(profile);
+    }
+
+    return profiles;
+}
+
+QVector<CycleProfile> Database::getCycleProfilesWithStats()
+{
+    QVector<CycleProfile> profiles = getAllCycleProfiles();
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+
+    for (auto &profile : profiles) {
+        QSqlQuery statsQuery(db);
+        statsQuery.prepare(R"(
+            SELECT
+                COUNT(*) as count,
+                COALESCE(AVG(total_seconds), 0) as avg_total,
+                COALESCE(MIN(total_seconds), 0) as best_total,
+                COALESCE(MAX(total_seconds), 0) as worst_total
+            FROM cycle_records
+            WHERE profile_id = :profile_id
+        )");
+        statsQuery.bindValue(":profile_id", profile.id.value_or(0));
+
+        if (statsQuery.exec() && statsQuery.next()) {
+            profile.recordCount = statsQuery.value("count").toInt();
+            profile.avgTotalSeconds = statsQuery.value("avg_total").toInt();
+            profile.bestTotalSeconds = statsQuery.value("best_total").toInt();
+            profile.worstTotalSeconds = statsQuery.value("worst_total").toInt();
+        }
+    }
+
+    return profiles;
+}
+
+bool Database::updateCycleProfile(const CycleProfile &profile)
+{
+    if (!profile.id.has_value()) {
+        return false;
+    }
+
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        UPDATE cycle_profiles
+        SET name = :name, source_location_id = :source_location_id,
+            dest_location_id = :dest_location_id, vehicle_id = :vehicle_id, notes = :notes
+        WHERE id = :id
+    )");
+    query.bindValue(":name", profile.name);
+    query.bindValue(":source_location_id", profile.sourceLocationId > 0 ? profile.sourceLocationId : QVariant());
+    query.bindValue(":dest_location_id", profile.destLocationId > 0 ? profile.destLocationId : QVariant());
+    query.bindValue(":vehicle_id", profile.vehicleId > 0 ? profile.vehicleId : QVariant());
+    query.bindValue(":notes", profile.notes);
+    query.bindValue(":id", profile.id.value());
+
+    if (!query.exec()) {
+        qWarning() << "Failed to update cycle profile:" << query.lastError().text();
+        return false;
+    }
+    return query.numRowsAffected() > 0;
+}
+
+bool Database::deleteCycleProfile(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    // Delete records first (if ON DELETE CASCADE doesn't work)
+    query.prepare("DELETE FROM cycle_records WHERE profile_id = :id");
+    query.bindValue(":id", id);
+    query.exec();
+
+    query.prepare("DELETE FROM cycle_profiles WHERE id = :id");
+    query.bindValue(":id", id);
+
+    return query.exec();
+}
+
+// =============================================================================
+// Add to database.cpp - Cycle Records CRUD
+// =============================================================================
+
+int Database::addCycleRecord(const CycleRecord &record)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    int total = record.loadSeconds + record.haulSeconds + record.dumpSeconds + record.returnSeconds;
+
+    query.prepare(R"(
+        INSERT INTO cycle_records (profile_id, load_seconds, haul_seconds, dump_seconds,
+                                   return_seconds, total_seconds, timestamp, notes)
+        VALUES (:profile_id, :load_seconds, :haul_seconds, :dump_seconds,
+                :return_seconds, :total_seconds, :timestamp, :notes)
+    )");
+    query.bindValue(":profile_id", record.profileId);
+    query.bindValue(":load_seconds", record.loadSeconds);
+    query.bindValue(":haul_seconds", record.haulSeconds);
+    query.bindValue(":dump_seconds", record.dumpSeconds);
+    query.bindValue(":return_seconds", record.returnSeconds);
+    query.bindValue(":total_seconds", total);
+    query.bindValue(":timestamp", record.timestamp.toString(Qt::ISODate));
+    query.bindValue(":notes", record.notes);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to add cycle record:" << query.lastError().text();
+        return -1;
+    }
+
+    return query.lastInsertId().toInt();
+}
+
+std::optional<CycleRecord> Database::getCycleRecord(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        SELECT cr.*, cp.name as profile_name
+        FROM cycle_records cr
+        JOIN cycle_profiles cp ON cr.profile_id = cp.id
+        WHERE cr.id = :id
+    )");
+    query.bindValue(":id", id);
+
+    if (!query.exec() || !query.next()) {
+        return std::nullopt;
+    }
+
+    CycleRecord record;
+    record.id = query.value("id").toInt();
+    record.profileId = query.value("profile_id").toInt();
+    record.loadSeconds = query.value("load_seconds").toInt();
+    record.haulSeconds = query.value("haul_seconds").toInt();
+    record.dumpSeconds = query.value("dump_seconds").toInt();
+    record.returnSeconds = query.value("return_seconds").toInt();
+    record.totalSeconds = query.value("total_seconds").toInt();
+    record.timestamp = QDateTime::fromString(query.value("timestamp").toString(), Qt::ISODate);
+    record.notes = query.value("notes").toString();
+    record.profileName = query.value("profile_name").toString();
+
+    return record;
+}
+
+QVector<CycleRecord> Database::getAllCycleRecords()
+{
+    QVector<CycleRecord> records;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec(R"(
+        SELECT cr.*, cp.name as profile_name
+        FROM cycle_records cr
+        JOIN cycle_profiles cp ON cr.profile_id = cp.id
+        ORDER BY cr.timestamp DESC
+    )")) {
+        qWarning() << "Failed to get cycle records:" << query.lastError().text();
+        return records;
+    }
+
+    while (query.next()) {
+        CycleRecord record;
+        record.id = query.value("id").toInt();
+        record.profileId = query.value("profile_id").toInt();
+        record.loadSeconds = query.value("load_seconds").toInt();
+        record.haulSeconds = query.value("haul_seconds").toInt();
+        record.dumpSeconds = query.value("dump_seconds").toInt();
+        record.returnSeconds = query.value("return_seconds").toInt();
+        record.totalSeconds = query.value("total_seconds").toInt();
+        record.timestamp = QDateTime::fromString(query.value("timestamp").toString(), Qt::ISODate);
+        record.notes = query.value("notes").toString();
+        record.profileName = query.value("profile_name").toString();
+        records.append(record);
+    }
+
+    return records;
+}
+
+QVector<CycleRecord> Database::getCycleRecordsByProfile(int profileId)
+{
+    QVector<CycleRecord> records;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        SELECT cr.*, cp.name as profile_name
+        FROM cycle_records cr
+        JOIN cycle_profiles cp ON cr.profile_id = cp.id
+        WHERE cr.profile_id = :profile_id
+        ORDER BY cr.timestamp DESC
+    )");
+    query.bindValue(":profile_id", profileId);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to get cycle records by profile:" << query.lastError().text();
+        return records;
+    }
+
+    while (query.next()) {
+        CycleRecord record;
+        record.id = query.value("id").toInt();
+        record.profileId = query.value("profile_id").toInt();
+        record.loadSeconds = query.value("load_seconds").toInt();
+        record.haulSeconds = query.value("haul_seconds").toInt();
+        record.dumpSeconds = query.value("dump_seconds").toInt();
+        record.returnSeconds = query.value("return_seconds").toInt();
+        record.totalSeconds = query.value("total_seconds").toInt();
+        record.timestamp = QDateTime::fromString(query.value("timestamp").toString(), Qt::ISODate);
+        record.notes = query.value("notes").toString();
+        record.profileName = query.value("profile_name").toString();
+        records.append(record);
+    }
+
+    return records;
+}
+
+bool Database::updateCycleRecord(const CycleRecord &record)
+{
+    if (!record.id.has_value()) {
+        return false;
+    }
+
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    int total = record.loadSeconds + record.haulSeconds + record.dumpSeconds + record.returnSeconds;
+
+    query.prepare(R"(
+        UPDATE cycle_records
+        SET profile_id = :profile_id, load_seconds = :load_seconds, haul_seconds = :haul_seconds,
+            dump_seconds = :dump_seconds, return_seconds = :return_seconds, total_seconds = :total_seconds,
+            timestamp = :timestamp, notes = :notes
+        WHERE id = :id
+    )");
+    query.bindValue(":profile_id", record.profileId);
+    query.bindValue(":load_seconds", record.loadSeconds);
+    query.bindValue(":haul_seconds", record.haulSeconds);
+    query.bindValue(":dump_seconds", record.dumpSeconds);
+    query.bindValue(":return_seconds", record.returnSeconds);
+    query.bindValue(":total_seconds", total);
+    query.bindValue(":timestamp", record.timestamp.toString(Qt::ISODate));
+    query.bindValue(":notes", record.notes);
+    query.bindValue(":id", record.id.value());
+
+    if (!query.exec()) {
+        qWarning() << "Failed to update cycle record:" << query.lastError().text();
+        return false;
+    }
+    return query.numRowsAffected() > 0;
+}
+
+bool Database::deleteCycleRecord(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("DELETE FROM cycle_records WHERE id = :id");
+    query.bindValue(":id", id);
+
+    return query.exec();
+}
+
+bool Database::clearCycleRecordsByProfile(int profileId)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("DELETE FROM cycle_records WHERE profile_id = :profile_id");
+    query.bindValue(":profile_id", profileId);
+
+    return query.exec();
 }
 
 // =============================================================================
