@@ -132,6 +132,11 @@ bool Database::createTables()
         return false;
     }
 
+    // Production runs table
+    if (!createProductionRunsTable()) {
+        return false;
+    }
+
     return true;
 }
 
@@ -262,7 +267,29 @@ bool Database::createOperationsTables()
         qWarning() << "Failed to create movement_equipment_usage table:" << query.lastError().text();
         return false;
     }
+    return true;
+}
 
+bool Database::createProductionRunsTable()
+{
+        QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+        QSqlQuery query(db);
+
+        if (!query.exec(R"(
+        CREATE TABLE IF NOT EXISTS production_runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            recipe_id INTEGER NOT NULL,
+            quantity INTEGER DEFAULT 1,
+            timestamp TEXT NOT NULL,
+            deducted_inputs INTEGER DEFAULT 0,
+            added_outputs INTEGER DEFAULT 0,
+            notes TEXT,
+            FOREIGN KEY (recipe_id) REFERENCES recipes(id)
+        )
+    )")) {
+        qWarning() << "Failed to create production_runs table:" << query.lastError().text();
+        return false;
+        }
     return true;
 }
 
@@ -2629,6 +2656,256 @@ bool Database::resetOilTracking()
     query.bindValue(":last_reset", QDateTime::currentDateTime().toString(Qt::ISODate));
 
     return query.exec();
+}
+
+// =============================================================================
+// Add to database.cpp - Production Runs CRUD
+// =============================================================================
+
+int Database::addProductionRun(const ProductionRun &run)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        INSERT INTO production_runs (recipe_id, quantity, timestamp, deducted_inputs, added_outputs, notes)
+        VALUES (:recipe_id, :quantity, :timestamp, :deducted_inputs, :added_outputs, :notes)
+    )");
+    query.bindValue(":recipe_id", run.recipeId);
+    query.bindValue(":quantity", run.quantity);
+    query.bindValue(":timestamp", run.timestamp.toString(Qt::ISODate));
+    query.bindValue(":deducted_inputs", run.deductedInputs ? 1 : 0);
+    query.bindValue(":added_outputs", run.addedOutputs ? 1 : 0);
+    query.bindValue(":notes", run.notes);
+
+    if (!query.exec()) {
+        m_lastError = query.lastError().text();
+        qWarning() << "Failed to add production run:" << m_lastError;
+        return -1;
+    }
+
+    return query.lastInsertId().toInt();
+}
+
+std::optional<ProductionRun> Database::getProductionRun(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        SELECT pr.*,
+               r.output_item as recipe_name, r.output_qty,
+               w.name as workbench_name
+        FROM production_runs pr
+        JOIN recipes r ON pr.recipe_id = r.id
+        JOIN workbenches w ON r.workbench_id = w.id
+        WHERE pr.id = :id
+    )");
+    query.bindValue(":id", id);
+
+    if (!query.exec() || !query.next()) {
+        return std::nullopt;
+    }
+
+    ProductionRun run;
+    run.id = query.value("id").toInt();
+    run.recipeId = query.value("recipe_id").toInt();
+    run.quantity = query.value("quantity").toInt();
+    run.timestamp = QDateTime::fromString(query.value("timestamp").toString(), Qt::ISODate);
+    run.deductedInputs = query.value("deducted_inputs").toBool();
+    run.addedOutputs = query.value("added_outputs").toBool();
+    run.notes = query.value("notes").toString();
+    run.recipeName = query.value("recipe_name").toString();
+    run.outputQty = query.value("output_qty").toInt();
+    run.workbenchName = query.value("workbench_name").toString();
+
+    return run;
+}
+
+QVector<ProductionRun> Database::getAllProductionRuns()
+{
+    QVector<ProductionRun> runs;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec(R"(
+        SELECT pr.*,
+               r.output_item as recipe_name, r.output_qty,
+               w.name as workbench_name
+        FROM production_runs pr
+        JOIN recipes r ON pr.recipe_id = r.id
+        JOIN workbenches w ON r.workbench_id = w.id
+        ORDER BY pr.timestamp DESC
+    )")) {
+        qWarning() << "Failed to get production runs:" << query.lastError().text();
+        return runs;
+    }
+
+    while (query.next()) {
+        ProductionRun run;
+        run.id = query.value("id").toInt();
+        run.recipeId = query.value("recipe_id").toInt();
+        run.quantity = query.value("quantity").toInt();
+        run.timestamp = QDateTime::fromString(query.value("timestamp").toString(), Qt::ISODate);
+        run.deductedInputs = query.value("deducted_inputs").toBool();
+        run.addedOutputs = query.value("added_outputs").toBool();
+        run.notes = query.value("notes").toString();
+        run.recipeName = query.value("recipe_name").toString();
+        run.outputQty = query.value("output_qty").toInt();
+        run.workbenchName = query.value("workbench_name").toString();
+        runs.append(run);
+    }
+
+    return runs;
+}
+
+QVector<ProductionRun> Database::getProductionRunsByDateRange(const QDateTime &from, const QDateTime &to)
+{
+    QVector<ProductionRun> runs;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        SELECT pr.*,
+               r.output_item as recipe_name, r.output_qty,
+               w.name as workbench_name
+        FROM production_runs pr
+        JOIN recipes r ON pr.recipe_id = r.id
+        JOIN workbenches w ON r.workbench_id = w.id
+        WHERE pr.timestamp BETWEEN :from AND :to
+        ORDER BY pr.timestamp DESC
+    )");
+    query.bindValue(":from", from.toString(Qt::ISODate));
+    query.bindValue(":to", to.toString(Qt::ISODate));
+
+    if (!query.exec()) {
+        qWarning() << "Failed to get production runs by date:" << query.lastError().text();
+        return runs;
+    }
+
+    while (query.next()) {
+        ProductionRun run;
+        run.id = query.value("id").toInt();
+        run.recipeId = query.value("recipe_id").toInt();
+        run.quantity = query.value("quantity").toInt();
+        run.timestamp = QDateTime::fromString(query.value("timestamp").toString(), Qt::ISODate);
+        run.deductedInputs = query.value("deducted_inputs").toBool();
+        run.addedOutputs = query.value("added_outputs").toBool();
+        run.notes = query.value("notes").toString();
+        run.recipeName = query.value("recipe_name").toString();
+        run.outputQty = query.value("output_qty").toInt();
+        run.workbenchName = query.value("workbench_name").toString();
+        runs.append(run);
+    }
+
+    return runs;
+}
+
+QVector<ProductionRun> Database::getProductionRunsByRecipe(int recipeId)
+{
+    QVector<ProductionRun> runs;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        SELECT pr.*,
+               r.output_item as recipe_name, r.output_qty,
+               w.name as workbench_name
+        FROM production_runs pr
+        JOIN recipes r ON pr.recipe_id = r.id
+        JOIN workbenches w ON r.workbench_id = w.id
+        WHERE pr.recipe_id = :recipe_id
+        ORDER BY pr.timestamp DESC
+    )");
+    query.bindValue(":recipe_id", recipeId);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to get production runs by recipe:" << query.lastError().text();
+        return runs;
+    }
+
+    while (query.next()) {
+        ProductionRun run;
+        run.id = query.value("id").toInt();
+        run.recipeId = query.value("recipe_id").toInt();
+        run.quantity = query.value("quantity").toInt();
+        run.timestamp = QDateTime::fromString(query.value("timestamp").toString(), Qt::ISODate);
+        run.deductedInputs = query.value("deducted_inputs").toBool();
+        run.addedOutputs = query.value("added_outputs").toBool();
+        run.notes = query.value("notes").toString();
+        run.recipeName = query.value("recipe_name").toString();
+        run.outputQty = query.value("output_qty").toInt();
+        run.workbenchName = query.value("workbench_name").toString();
+        runs.append(run);
+    }
+
+    return runs;
+}
+
+bool Database::updateProductionRun(const ProductionRun &run)
+{
+    if (!run.id.has_value()) {
+        return false;
+    }
+
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        UPDATE production_runs
+        SET recipe_id = :recipe_id, quantity = :quantity, timestamp = :timestamp,
+            deducted_inputs = :deducted_inputs, added_outputs = :added_outputs, notes = :notes
+        WHERE id = :id
+    )");
+    query.bindValue(":recipe_id", run.recipeId);
+    query.bindValue(":quantity", run.quantity);
+    query.bindValue(":timestamp", run.timestamp.toString(Qt::ISODate));
+    query.bindValue(":deducted_inputs", run.deductedInputs ? 1 : 0);
+    query.bindValue(":added_outputs", run.addedOutputs ? 1 : 0);
+    query.bindValue(":notes", run.notes);
+    query.bindValue(":id", run.id.value());
+
+    if (!query.exec()) {
+        m_lastError = query.lastError().text();
+        return false;
+    }
+    return query.numRowsAffected() > 0;
+}
+
+bool Database::deleteProductionRun(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("DELETE FROM production_runs WHERE id = :id");
+    query.bindValue(":id", id);
+
+    return query.exec();
+}
+
+bool Database::clearAllProductionRuns()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    return query.exec("DELETE FROM production_runs");
+}
+
+int Database::getTotalProductionRuns()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (query.exec("SELECT COALESCE(SUM(quantity), 0) FROM production_runs") && query.next()) {
+        return query.value(0).toInt();
+    }
+    return 0;
+}
+
+double Database::getTotalValueCreated()
+{
+    // This would need item prices - calculate externally
+    return 0.0;
 }
 
 // =============================================================================

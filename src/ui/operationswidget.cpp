@@ -9,6 +9,7 @@
 #include "materialmovementtab.h"
 #include "operationssettingstab.h"
 #include "inventorytab.h"
+#include "productiontab.h"
 
 #include <QVBoxLayout>
 #include <QLabel>
@@ -53,14 +54,9 @@ void OperationsWidget::setupUi()
     // maintLayout->addWidget(maintLabel);
     // m_subTabs->addTab(maintenanceTab, "Maintenance");
 
-    // Stub tabs - Production
-    QWidget *productionTab = new QWidget();
-    QVBoxLayout *prodLayout = new QVBoxLayout(productionTab);
-    QLabel *prodLabel = new QLabel("Production Tracking - Coming Soon");
-    prodLabel->setAlignment(Qt::AlignCenter);
-    prodLabel->setStyleSheet("color: gray; font-size: 14px;");
-    prodLayout->addWidget(prodLabel);
-    m_subTabs->addTab(productionTab, "Production");
+    // Production (with subtabs: Calculator, Log, Cost Analysis)
+    m_productionTab = new ProductionTab(m_manager->database(), m_inventoryTab, this);
+    m_subTabs->addTab(m_productionTab, "Production");
 
     // Stub tabs - Shift Log
     QWidget *shiftTab = new QWidget();
@@ -84,4 +80,14 @@ void OperationsWidget::setupUi()
     m_subTabs->addTab(new OperationsSettingsTab(m_manager, this), "Settings");
 
     mainLayout->addWidget(m_subTabs);
+}
+
+InventoryTab* OperationsWidget::inventoryTab() const
+{
+    return m_inventoryTab;
+}
+
+ProductionTab* OperationsWidget::productionTab() const
+{
+    return m_productionTab;
 }

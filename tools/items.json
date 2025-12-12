@@ -6481,6 +6481,22 @@
   },
   {
     "code": "",
+    "name": "Steel Beam",
+    "category_main": "Materials - Steel",
+    "category_sub": "None",
+    "buy_price_internal": 150.0,
+    "buy_price_display": 150,
+    "sell_price_internal": 105.0,
+    "sell_price_display": 105,
+    "weight": 0.0,
+    "is_purchasable": true,
+    "is_sellable": true,
+    "is_craftable": false,
+    "pricing_group": "Base70",
+    "notes": ""
+  },
+  {
+    "code": "",
     "name": "Wood Beam",
     "category_main": "Materials - Wood",
     "category_sub": "None",

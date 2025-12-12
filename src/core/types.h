@@ -259,6 +259,29 @@ struct OilTracking {
     }
 };
 
+struct ProductionRun {
+    std::optional<int> id;
+    int recipeId = 0;
+    int quantity = 1;           // Number of times recipe was run
+    QDateTime timestamp;
+    bool deductedInputs = false;
+    bool addedOutputs = false;
+    QString notes;
+
+    // Convenience fields (populated via JOIN)
+    QString recipeName;         // Output item name
+    int outputQty = 1;          // Recipe output qty
+    QString workbenchName;
+    double inputCost = 0.0;     // Calculated cost
+    double outputValue = 0.0;   // Calculated value
+
+    // Computed
+    int totalOutputQty() const { return outputQty * quantity; }
+    double totalInputCost() const { return inputCost * quantity; }
+    double totalOutputValue() const { return outputValue * quantity; }
+    double profit() const { return totalOutputValue() - totalInputCost(); }
+};
+
 } // namespace Frontier
 
 #endif // TYPES_H

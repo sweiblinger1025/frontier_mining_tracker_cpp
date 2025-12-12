@@ -156,6 +156,23 @@ public:
     bool addOilSold(int quantity);  // Increment totalOilSold
     bool resetOilTracking();
 
+    // === Production Runs Table ===
+    bool createProductionRunsTable();
+
+    // === Production Runs CRUD ===
+    int addProductionRun(const ProductionRun &run);
+    std::optional<ProductionRun> getProductionRun(int id);
+    QVector<ProductionRun> getAllProductionRuns();
+    QVector<ProductionRun> getProductionRunsByDateRange(const QDateTime &from, const QDateTime &to);
+    QVector<ProductionRun> getProductionRunsByRecipe(int recipeId);
+    bool updateProductionRun(const ProductionRun &run);
+    bool deleteProductionRun(int id);
+    bool clearAllProductionRuns();
+
+    // === Production Statistics ===
+    int getTotalProductionRuns();
+    double getTotalValueCreated();
+
 private:
     bool createTables();
     bool createVehiclesTable();

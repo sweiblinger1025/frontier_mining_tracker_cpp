@@ -77,7 +77,10 @@ set(SOURCES
     src/ui/fuellogwidget.cpp
     src/ui/materialmovementtab.cpp
     src/ui/inventorytab.cpp
-
+    src/ui/costanalysistab.cpp
+    src/ui/productiontab.cpp
+    src/ui/productioncalculatortab.cpp
+    src/ui/productionlogtab.cpp
 
     # UI - Data Hub Subtabs
     src/ui/vehiclespecstab.cpp
@@ -118,6 +121,10 @@ set(HEADERS
     src/ui/fuellogwidget.h
     src/ui/materialmovementtab.h
     src/ui/inventorytab.h
+    src/ui/costanalysistab.h
+    src/ui/productiontab.h
+    src/ui/productioncalculatortab.h
+    src/ui/productionlogtab.h
 
     # UI - Data Hub Subtabs
     src/ui/vehiclespecstab.h
@@ -142,6 +149,8 @@ qt_add_executable(frontier_mining_tracker_cpp
     ${HEADERS}
     ${UIS}
     ${RESOURCES}
+
+
 
 )
 

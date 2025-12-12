@@ -11,7 +11,8 @@
 
 #include "core/operationsmanager.h"
 
-class InventoryTab;  // Forward declaration
+class InventoryTab;
+class ProductionTab;
 
 class OperationsWidget : public QWidget
 {
@@ -21,8 +22,9 @@ public:
     explicit OperationsWidget(Frontier::OperationsManager *manager, QWidget *parent = nullptr);
     ~OperationsWidget();
 
-    // Accessor for Production Log integration
+    // Accessors for cross-tab integration
     InventoryTab* inventoryTab() const;
+    ProductionTab* productionTab() const;
 
 private:
     void setupUi();
@@ -30,6 +32,7 @@ private:
     Frontier::OperationsManager *m_manager;
     QTabWidget *m_subTabs;
     InventoryTab *m_inventoryTab = nullptr;
+    ProductionTab *m_productionTab = nullptr;
 };
 
 #endif // OPERATIONSWIDGET_H

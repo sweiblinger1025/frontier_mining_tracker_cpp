@@ -226,7 +226,7 @@ QWidget* InventoryTab::createFilterPanel()
     // Show Zero Stock
     m_showZeroCheck = new QCheckBox(tr("Show Zero Stock"));
     m_showZeroCheck->setChecked(true);
-    connect(m_showZeroCheck, &QCheckBox::stateChanged, this, &InventoryTab::onFilterChanged);
+    connect(m_showZeroCheck, &QCheckBox::checkStateChanged, this, &InventoryTab::onFilterChanged);
     layout->addWidget(m_showZeroCheck);
 
     layout->addStretch();
