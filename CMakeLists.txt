@@ -70,6 +70,17 @@ set(SOURCES
     src/ui/datahubwidget.cpp
     src/ui/auditorwidget.cpp
 
+    # UI - Finance Tab
+    src/ui/ledgertab.cpp
+    src/ui/financesettingstab.cpp
+    src/ui/budgetstab.cpp
+    src/ui/summarytab.cpp
+    src/ui/accountstab.cpp
+    src/ui/capitalplannerwidget.cpp
+    src/ui/budgetoverviewtab.cpp
+    src/ui/equipmentplannertab.cpp
+    src/ui/facilityplannertab.cpp
+
     # UI - Operations Tab
     src/ui/operationswidget.cpp
     src/ui/equipmentoperationstab.cpp
@@ -81,11 +92,14 @@ set(SOURCES
     src/ui/productiontab.cpp
     src/ui/productioncalculatortab.cpp
     src/ui/productionlogtab.cpp
+    src/ui/shiftlogtab.cpp
+    src/ui/cycletimetab.cpp
 
     # UI - Data Hub Subtabs
     src/ui/vehiclespecstab.cpp
     src/ui/recipestab.cpp
     src/ui/locationstab.cpp
+    src/ui/factorybuildingstab.cpp
 
     # UI - Dialogs
     src/ui/additemdialog.cpp
@@ -114,6 +128,17 @@ set(HEADERS
     src/ui/datahubwidget.h
     src/ui/auditorwidget.h
 
+    # UI - Finance Tab
+    src/ui/ledgertab.h
+    src/ui/accountstab.h
+    src/ui/summarytab.h
+    src/ui/budgetstab.h
+    src/ui/financesettingstab.h
+    src/ui/capitalplannerwidget.h
+    src/ui/budgetoverviewtab.h
+    src/ui/equipmentplannertab.h
+    src/ui/facilityplannertab.h
+
     # UI - Operations Tab
     src/ui/operationswidget.h
     src/ui/equipmentoperationstab.h
@@ -125,11 +150,14 @@ set(HEADERS
     src/ui/productiontab.h
     src/ui/productioncalculatortab.h
     src/ui/productionlogtab.h
+    src/ui/shiftlogtab.h
+     src/ui/cycletimetab.h
 
     # UI - Data Hub Subtabs
     src/ui/vehiclespecstab.h
     src/ui/recipestab.h
     src/ui/locationstab.h
+    src/ui/factorybuildingstab.h
 
     # UI - Dialogs
     src/ui/additemdialog.h
@@ -149,8 +177,9 @@ qt_add_executable(frontier_mining_tracker_cpp
     ${HEADERS}
     ${UIS}
     ${RESOURCES}
-    src/ui/shiftlogtab.h src/ui/shiftlogtab.cpp
-    src/ui/cycletimetab.h src/ui/cycletimetab.cpp
+
+
+
 
 
 

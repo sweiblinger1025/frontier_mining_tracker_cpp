@@ -17,6 +17,7 @@
 #include <QSortFilterProxyModel>
 
 #include "core/database.h"
+#include "factorybuildingstab.h"
 #include "locationstab.h"
 
 // Forward declarations
@@ -57,6 +58,7 @@ private:
     VehicleSpecsTab *m_vehicleSpecsTab;
     RecipesTab *m_recipesTab;
     LocationsTab *m_locationsTab;
+    FactoryBuildingsTab *m_factoryBuildingsTab;
 
     // Items tab UI elements
     QComboBox *m_categoryFilter;

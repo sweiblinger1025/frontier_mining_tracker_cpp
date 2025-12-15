@@ -210,6 +210,61 @@ public:
     bool deleteCycleRecord(int id);
     bool clearCycleRecordsByProfile(int profileId);
 
+    // === Finance Calculations ===
+    AccountBalance calculateBalances();
+    AccountBalance calculateBalancesAsOf(const QDate &date);
+    FinanceSummary getFinanceSummary(const QDate &from, const QDate &to);
+    FinanceSummary getFinanceSummaryByAccount(const QDate &from, const QDate &to, AccountType account);
+
+    // === Budget Table ===
+    bool createBudgetsTable();
+    int addBudget(const Budget &budget);
+    std::optional<Budget> getBudget(int id);
+    QVector<Budget> getBudgetsForMonth(int year, int month);
+    QVector<Budget> getAllBudgets();
+    bool updateBudget(const Budget &budget);
+    bool deleteBudget(int id);
+
+    // === Finance Settings ===
+    double getAutoSplitCompanyPercent();  // Default 90%
+    void setAutoSplitCompanyPercent(double percent);
+
+    // === Factory Buildings Table ===
+    bool createFactoryBuildingsTable();
+    int addFactoryBuilding(const FactoryBuilding &building);
+    std::optional<FactoryBuilding> getFactoryBuilding(int id);
+    std::optional<FactoryBuilding> getFactoryBuildingByName(const QString &name);
+    QVector<FactoryBuilding> getAllFactoryBuildings();
+    QVector<FactoryBuilding> getFactoryBuildingsByCategory(const QString &category);
+    bool updateFactoryBuilding(const FactoryBuilding &building);
+    bool deleteFactoryBuilding(int id);
+
+    // Convenience getters
+    QVector<FactoryBuilding> getConveyors();
+    QVector<FactoryBuilding> getPipelines();
+    QVector<FactoryBuilding> getPowerEquipment();
+    QVector<FactoryBuilding> getProductionBuildings();
+    QVector<FactoryBuilding> getGenerators();  // Items with generatedKw > 0
+
+    // === Equipment Plan ===
+    bool createEquipmentPlanTable();
+    int addEquipmentPlanItem(const EquipmentPlanItem &item);
+    std::optional<EquipmentPlanItem> getEquipmentPlanItem(int id);
+    std::optional<EquipmentPlanItem> getEquipmentPlanItemByItemId(int itemId);
+    QVector<EquipmentPlanItem> getEquipmentPlan();
+    bool updateEquipmentPlanItem(const EquipmentPlanItem &item);
+    bool deleteEquipmentPlanItem(int id);
+    void clearEquipmentPlan();
+
+    // === Facility Plan ===
+    bool createFacilityPlanTable();
+    int addFacilityPlanItem(const FacilityPlanItem &item);
+    std::optional<FacilityPlanItem> getFacilityPlanItem(int id);
+    std::optional<FacilityPlanItem> getFacilityPlanItemByBuildingId(int buildingId);
+    QVector<FacilityPlanItem> getFacilityPlan();
+    bool updateFacilityPlanItem(const FacilityPlanItem &item);
+    bool deleteFacilityPlanItem(int id);
+    void clearFacilityPlan();
 
 private:
     bool createTables();

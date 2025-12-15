@@ -150,6 +150,108 @@ bool Database::createTables()
     if (!createCycleRecordsTable()){
         return false;
     }
+
+    // Budgets Table
+    if (!createBudgetsTable()) {
+        return false;
+    }
+
+    // Factory Buildings table
+    if (!createFactoryBuildingsTable()) {
+        return false;
+    }
+
+    // Capital Planner tables
+    if (!createEquipmentPlanTable()) {
+        return false;
+    }
+    if (!createFacilityPlanTable()) {
+        return false;
+    }
+
+    return true;
+}
+
+// -----------------------------------------------------------------------------
+// Equipment Plan Table
+// -----------------------------------------------------------------------------
+
+bool Database::createEquipmentPlanTable()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec(R"(
+        CREATE TABLE IF NOT EXISTS equipment_plan (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            item_id INTEGER NOT NULL,
+            item_name TEXT NOT NULL,
+            category TEXT,
+            quantity INTEGER DEFAULT 1,
+            unit_price REAL DEFAULT 0,
+            total_cost REAL DEFAULT 0
+        )
+    )")) {
+        qWarning() << "Failed to create equipment_plan table:" << query.lastError().text();
+        return false;
+    }
+    return true;
+}
+
+// -----------------------------------------------------------------------------
+// Facility Plan Table
+// -----------------------------------------------------------------------------
+
+bool Database::createFacilityPlanTable()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec(R"(
+        CREATE TABLE IF NOT EXISTS facility_plan (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            building_id INTEGER NOT NULL,
+            building_name TEXT NOT NULL,
+            category TEXT,
+            quantity INTEGER DEFAULT 1,
+            unit_price REAL DEFAULT 0,
+            unit_power_kw REAL DEFAULT 0,
+            unit_generated_kw REAL DEFAULT 0,
+            total_cost REAL DEFAULT 0,
+            total_power_kw REAL DEFAULT 0,
+            total_generated_kw REAL DEFAULT 0
+        )
+    )")) {
+        qWarning() << "Failed to create facility_plan table:" << query.lastError().text();
+        return false;
+    }
+    return true;
+}
+
+bool Database::createFactoryBuildingsTable()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec(R"(
+        CREATE TABLE IF NOT EXISTS factory_buildings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            category TEXT,
+            dimensions TEXT,
+            speed TEXT,
+            power_kw REAL DEFAULT 0,
+            generated_kw REAL DEFAULT 0,
+            capacity REAL DEFAULT 0,
+            connections INTEGER DEFAULT 0,
+            price REAL DEFAULT 0,
+            notes TEXT
+        )
+    )")) {
+        qWarning() << "Failed to create factory_buildings table:" << query.lastError().text();
+        return false;
+    }
+
     return true;
 }
 
@@ -3548,6 +3650,876 @@ bool Database::clearCycleRecordsByProfile(int profileId)
 }
 
 // =============================================================================
+// Budgets Table
+// =============================================================================
+
+bool Database::createBudgetsTable()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec(R"(
+        CREATE TABLE IF NOT EXISTS budgets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category TEXT NOT NULL,
+            monthly_amount REAL DEFAULT 0,
+            year INTEGER NOT NULL,
+            month INTEGER NOT NULL,
+            notes TEXT,
+            UNIQUE(category, year, month)
+        )
+    )")) {
+        qWarning() << "Failed to create budgets table:" << query.lastError().text();
+        return false;
+    }
+
+    return true;
+}
+
+// =============================================================================
+// Add to database.cpp - Finance Calculations
+// =============================================================================
+
+AccountBalance Database::calculateBalances()
+{
+    AccountBalance balance;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    // Calculate Company balance
+    if (query.exec(R"(
+        SELECT COALESCE(SUM(
+            CASE
+                WHEN type IN ('Sale', 'Opening') THEN total_amount
+                WHEN type IN ('Purchase', 'Fuel') THEN -total_amount
+                WHEN type = 'Transfer' THEN
+                    CASE WHEN total_amount > 0 THEN total_amount ELSE total_amount END
+                ELSE 0
+            END
+        ), 0) as balance
+        FROM transactions
+        WHERE account = 'Company'
+    )") && query.next()) {
+        balance.companyBalance = query.value("balance").toDouble();
+    }
+
+    // Calculate Personal balance
+    if (query.exec(R"(
+        SELECT COALESCE(SUM(
+            CASE
+                WHEN type IN ('Sale', 'Opening') THEN total_amount
+                WHEN type IN ('Purchase', 'Fuel') THEN -total_amount
+                WHEN type = 'Transfer' THEN
+                    CASE WHEN total_amount > 0 THEN total_amount ELSE total_amount END
+                ELSE 0
+            END
+        ), 0) as balance
+        FROM transactions
+        WHERE account = 'Personal'
+    )") && query.next()) {
+        balance.personalBalance = query.value("balance").toDouble();
+    }
+
+    return balance;
+}
+
+AccountBalance Database::calculateBalancesAsOf(const QDate &date)
+{
+    AccountBalance balance;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        SELECT COALESCE(SUM(
+            CASE
+                WHEN type IN ('Sale', 'Opening') THEN total_amount
+                WHEN type IN ('Purchase', 'Fuel') THEN -total_amount
+                WHEN type = 'Transfer' THEN total_amount
+                ELSE 0
+            END
+        ), 0) as balance
+        FROM transactions
+        WHERE account = 'Company' AND date <= :date
+    )");
+    query.bindValue(":date", date.toString(Qt::ISODate));
+
+    if (query.exec() && query.next()) {
+        balance.companyBalance = query.value("balance").toDouble();
+    }
+
+    query.prepare(R"(
+        SELECT COALESCE(SUM(
+            CASE
+                WHEN type IN ('Sale', 'Opening') THEN total_amount
+                WHEN type IN ('Purchase', 'Fuel') THEN -total_amount
+                WHEN type = 'Transfer' THEN total_amount
+                ELSE 0
+            END
+        ), 0) as balance
+        FROM transactions
+        WHERE account = 'Personal' AND date <= :date
+    )");
+    query.bindValue(":date", date.toString(Qt::ISODate));
+
+    if (query.exec() && query.next()) {
+        balance.personalBalance = query.value("balance").toDouble();
+    }
+
+    return balance;
+}
+
+FinanceSummary Database::getFinanceSummary(const QDate &from, const QDate &to)
+{
+    FinanceSummary summary;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    // Total Income (Sales + Opening)
+    query.prepare(R"(
+        SELECT COALESCE(SUM(total_amount), 0) as total
+        FROM transactions
+        WHERE type IN ('Sale', 'Opening') AND date BETWEEN :from AND :to
+    )");
+    query.bindValue(":from", from.toString(Qt::ISODate));
+    query.bindValue(":to", to.toString(Qt::ISODate));
+
+    if (query.exec() && query.next()) {
+        summary.totalIncome = query.value("total").toDouble();
+    }
+
+    // Total Expenses (Purchases + Fuel)
+    query.prepare(R"(
+        SELECT COALESCE(SUM(total_amount), 0) as total
+        FROM transactions
+        WHERE type IN ('Purchase', 'Fuel') AND date BETWEEN :from AND :to
+    )");
+    query.bindValue(":from", from.toString(Qt::ISODate));
+    query.bindValue(":to", to.toString(Qt::ISODate));
+
+    if (query.exec() && query.next()) {
+        summary.totalExpenses = query.value("total").toDouble();
+    }
+
+    summary.netProfit = summary.totalIncome - summary.totalExpenses;
+
+    // Income by category
+    query.prepare(R"(
+        SELECT category, COALESCE(SUM(total_amount), 0) as total
+        FROM transactions
+        WHERE type IN ('Sale', 'Opening') AND date BETWEEN :from AND :to
+        GROUP BY category
+        ORDER BY total DESC
+    )");
+    query.bindValue(":from", from.toString(Qt::ISODate));
+    query.bindValue(":to", to.toString(Qt::ISODate));
+
+    if (query.exec()) {
+        while (query.next()) {
+            QString cat = query.value("category").toString();
+            if (cat.isEmpty()) cat = "Uncategorized";
+            summary.incomeByCategory[cat] = query.value("total").toDouble();
+        }
+    }
+
+    // Expenses by category
+    query.prepare(R"(
+        SELECT category, COALESCE(SUM(total_amount), 0) as total
+        FROM transactions
+        WHERE type IN ('Purchase', 'Fuel') AND date BETWEEN :from AND :to
+        GROUP BY category
+        ORDER BY total DESC
+    )");
+    query.bindValue(":from", from.toString(Qt::ISODate));
+    query.bindValue(":to", to.toString(Qt::ISODate));
+
+    if (query.exec()) {
+        while (query.next()) {
+            QString cat = query.value("category").toString();
+            if (cat.isEmpty()) cat = "Uncategorized";
+            summary.expensesByCategory[cat] = query.value("total").toDouble();
+        }
+    }
+
+    return summary;
+}
+
+// =============================================================================
+// Add to database.cpp - Budget CRUD
+// =============================================================================
+
+int Database::addBudget(const Budget &budget)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        INSERT INTO budgets (category, monthly_amount, year, month, notes)
+        VALUES (:category, :monthly_amount, :year, :month, :notes)
+    )");
+    query.bindValue(":category", budget.category);
+    query.bindValue(":monthly_amount", budget.monthlyAmount);
+    query.bindValue(":year", budget.year);
+    query.bindValue(":month", budget.month);
+    query.bindValue(":notes", budget.notes);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to add budget:" << query.lastError().text();
+        return -1;
+    }
+
+    return query.lastInsertId().toInt();
+}
+
+std::optional<Budget> Database::getBudget(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("SELECT * FROM budgets WHERE id = :id");
+    query.bindValue(":id", id);
+
+    if (!query.exec() || !query.next()) {
+        return std::nullopt;
+    }
+
+    Budget budget;
+    budget.id = query.value("id").toInt();
+    budget.category = query.value("category").toString();
+    budget.monthlyAmount = query.value("monthly_amount").toDouble();
+    budget.year = query.value("year").toInt();
+    budget.month = query.value("month").toInt();
+    budget.notes = query.value("notes").toString();
+
+    return budget;
+}
+
+QVector<Budget> Database::getBudgetsForMonth(int year, int month)
+{
+    QVector<Budget> budgets;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        SELECT * FROM budgets
+        WHERE year = :year AND month = :month
+        ORDER BY category
+    )");
+    query.bindValue(":year", year);
+    query.bindValue(":month", month);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to get budgets:" << query.lastError().text();
+        return budgets;
+    }
+
+    while (query.next()) {
+        Budget budget;
+        budget.id = query.value("id").toInt();
+        budget.category = query.value("category").toString();
+        budget.monthlyAmount = query.value("monthly_amount").toDouble();
+        budget.year = query.value("year").toInt();
+        budget.month = query.value("month").toInt();
+        budget.notes = query.value("notes").toString();
+        budgets.append(budget);
+    }
+
+    return budgets;
+}
+
+QVector<Budget> Database::getAllBudgets()
+{
+    QVector<Budget> budgets;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec("SELECT * FROM budgets ORDER BY year DESC, month DESC, category")) {
+        qWarning() << "Failed to get all budgets:" << query.lastError().text();
+        return budgets;
+    }
+
+    while (query.next()) {
+        Budget budget;
+        budget.id = query.value("id").toInt();
+        budget.category = query.value("category").toString();
+        budget.monthlyAmount = query.value("monthly_amount").toDouble();
+        budget.year = query.value("year").toInt();
+        budget.month = query.value("month").toInt();
+        budget.notes = query.value("notes").toString();
+        budgets.append(budget);
+    }
+
+    return budgets;
+}
+
+bool Database::updateBudget(const Budget &budget)
+{
+    if (!budget.id.has_value()) {
+        return false;
+    }
+
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        UPDATE budgets
+        SET category = :category, monthly_amount = :monthly_amount,
+            year = :year, month = :month, notes = :notes
+        WHERE id = :id
+    )");
+    query.bindValue(":category", budget.category);
+    query.bindValue(":monthly_amount", budget.monthlyAmount);
+    query.bindValue(":year", budget.year);
+    query.bindValue(":month", budget.month);
+    query.bindValue(":notes", budget.notes);
+    query.bindValue(":id", budget.id.value());
+
+    if (!query.exec()) {
+        qWarning() << "Failed to update budget:" << query.lastError().text();
+        return false;
+    }
+    return query.numRowsAffected() > 0;
+}
+
+bool Database::deleteBudget(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("DELETE FROM budgets WHERE id = :id");
+    query.bindValue(":id", id);
+
+    return query.exec();
+}
+
+int Database::addFactoryBuilding(const FactoryBuilding &building)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        INSERT INTO factory_buildings
+        (name, category, dimensions, speed, power_kw, generated_kw, capacity, connections, price, notes)
+        VALUES (:name, :category, :dimensions, :speed, :power_kw, :generated_kw, :capacity, :connections, :price, :notes)
+    )");
+    query.bindValue(":name", building.name);
+    query.bindValue(":category", building.category);
+    query.bindValue(":dimensions", building.dimensions);
+    query.bindValue(":speed", building.speed);
+    query.bindValue(":power_kw", building.powerKw);
+    query.bindValue(":generated_kw", building.generatedKw);
+    query.bindValue(":capacity", building.capacity);
+    query.bindValue(":connections", building.connections);
+    query.bindValue(":price", building.price);
+    query.bindValue(":notes", building.notes);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to add factory building:" << query.lastError().text();
+        return -1;
+    }
+
+    return query.lastInsertId().toInt();
+}
+
+std::optional<FactoryBuilding> Database::getFactoryBuilding(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("SELECT * FROM factory_buildings WHERE id = :id");
+    query.bindValue(":id", id);
+
+    if (!query.exec() || !query.next()) {
+        return std::nullopt;
+    }
+
+    FactoryBuilding building;
+    building.id = query.value("id").toInt();
+    building.name = query.value("name").toString();
+    building.category = query.value("category").toString();
+    building.dimensions = query.value("dimensions").toString();
+    building.speed = query.value("speed").toString();
+    building.powerKw = query.value("power_kw").toDouble();
+    building.generatedKw = query.value("generated_kw").toDouble();
+    building.capacity = query.value("capacity").toDouble();
+    building.connections = query.value("connections").toInt();
+    building.price = query.value("price").toDouble();
+    building.notes = query.value("notes").toString();
+
+    return building;
+}
+
+std::optional<FactoryBuilding> Database::getFactoryBuildingByName(const QString &name)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("SELECT * FROM factory_buildings WHERE name = :name");
+    query.bindValue(":name", name);
+
+    if (!query.exec() || !query.next()) {
+        return std::nullopt;
+    }
+
+    FactoryBuilding building;
+    building.id = query.value("id").toInt();
+    building.name = query.value("name").toString();
+    building.category = query.value("category").toString();
+    building.dimensions = query.value("dimensions").toString();
+    building.speed = query.value("speed").toString();
+    building.powerKw = query.value("power_kw").toDouble();
+    building.generatedKw = query.value("generated_kw").toDouble();
+    building.capacity = query.value("capacity").toDouble();
+    building.connections = query.value("connections").toInt();
+    building.price = query.value("price").toDouble();
+    building.notes = query.value("notes").toString();
+
+    return building;
+}
+
+QVector<FactoryBuilding> Database::getAllFactoryBuildings()
+{
+    QVector<FactoryBuilding> buildings;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec("SELECT * FROM factory_buildings ORDER BY category, name")) {
+        qWarning() << "Failed to get factory buildings:" << query.lastError().text();
+        return buildings;
+    }
+
+    while (query.next()) {
+        FactoryBuilding building;
+        building.id = query.value("id").toInt();
+        building.name = query.value("name").toString();
+        building.category = query.value("category").toString();
+        building.dimensions = query.value("dimensions").toString();
+        building.speed = query.value("speed").toString();
+        building.powerKw = query.value("power_kw").toDouble();
+        building.generatedKw = query.value("generated_kw").toDouble();
+        building.capacity = query.value("capacity").toDouble();
+        building.connections = query.value("connections").toInt();
+        building.price = query.value("price").toDouble();
+        building.notes = query.value("notes").toString();
+        buildings.append(building);
+    }
+
+    return buildings;
+}
+
+QVector<FactoryBuilding> Database::getFactoryBuildingsByCategory(const QString &category)
+{
+    QVector<FactoryBuilding> buildings;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("SELECT * FROM factory_buildings WHERE category = :category ORDER BY name");
+    query.bindValue(":category", category);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to get factory buildings by category:" << query.lastError().text();
+        return buildings;
+    }
+
+    while (query.next()) {
+        FactoryBuilding building;
+        building.id = query.value("id").toInt();
+        building.name = query.value("name").toString();
+        building.category = query.value("category").toString();
+        building.dimensions = query.value("dimensions").toString();
+        building.speed = query.value("speed").toString();
+        building.powerKw = query.value("power_kw").toDouble();
+        building.generatedKw = query.value("generated_kw").toDouble();
+        building.capacity = query.value("capacity").toDouble();
+        building.connections = query.value("connections").toInt();
+        building.price = query.value("price").toDouble();
+        building.notes = query.value("notes").toString();
+        buildings.append(building);
+    }
+
+    return buildings;
+}
+
+bool Database::updateFactoryBuilding(const FactoryBuilding &building)
+{
+    if (!building.id.has_value()) {
+        return false;
+    }
+
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        UPDATE factory_buildings
+        SET name = :name, category = :category, dimensions = :dimensions, speed = :speed,
+            power_kw = :power_kw, generated_kw = :generated_kw, capacity = :capacity,
+            connections = :connections, price = :price, notes = :notes
+        WHERE id = :id
+    )");
+    query.bindValue(":name", building.name);
+    query.bindValue(":category", building.category);
+    query.bindValue(":dimensions", building.dimensions);
+    query.bindValue(":speed", building.speed);
+    query.bindValue(":power_kw", building.powerKw);
+    query.bindValue(":generated_kw", building.generatedKw);
+    query.bindValue(":capacity", building.capacity);
+    query.bindValue(":connections", building.connections);
+    query.bindValue(":price", building.price);
+    query.bindValue(":notes", building.notes);
+    query.bindValue(":id", building.id.value());
+
+    if (!query.exec()) {
+        qWarning() << "Failed to update factory building:" << query.lastError().text();
+        return false;
+    }
+    return query.numRowsAffected() > 0;
+}
+
+bool Database::deleteFactoryBuilding(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("DELETE FROM factory_buildings WHERE id = :id");
+    query.bindValue(":id", id);
+
+    return query.exec();
+}
+
+// Convenience getters
+QVector<FactoryBuilding> Database::getConveyors()
+{
+    return getFactoryBuildingsByCategory("Factory - Conveyors");
+}
+
+QVector<FactoryBuilding> Database::getPipelines()
+{
+    return getFactoryBuildingsByCategory("Factory - Pipeline");
+}
+
+QVector<FactoryBuilding> Database::getPowerEquipment()
+{
+    return getFactoryBuildingsByCategory("Factory - Power");
+}
+
+QVector<FactoryBuilding> Database::getProductionBuildings()
+{
+    return getFactoryBuildingsByCategory("Factory - Production");
+}
+
+QVector<FactoryBuilding> Database::getGenerators()
+{
+    QVector<FactoryBuilding> generators;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec("SELECT * FROM factory_buildings WHERE generated_kw > 0 ORDER BY generated_kw DESC")) {
+        return generators;
+    }
+
+    while (query.next()) {
+        FactoryBuilding building;
+        building.id = query.value("id").toInt();
+        building.name = query.value("name").toString();
+        building.category = query.value("category").toString();
+        building.dimensions = query.value("dimensions").toString();
+        building.speed = query.value("speed").toString();
+        building.powerKw = query.value("power_kw").toDouble();
+        building.generatedKw = query.value("generated_kw").toDouble();
+        building.capacity = query.value("capacity").toDouble();
+        building.connections = query.value("connections").toInt();
+        building.price = query.value("price").toDouble();
+        building.notes = query.value("notes").toString();
+        generators.append(building);
+    }
+
+    return generators;
+}
+
+int Database::addEquipmentPlanItem(const EquipmentPlanItem &item)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        INSERT INTO equipment_plan
+        (item_id, item_name, category, quantity, unit_price, total_cost)
+        VALUES (:item_id, :item_name, :category, :quantity, :unit_price, :total_cost)
+    )");
+    query.bindValue(":item_id", item.itemId);
+    query.bindValue(":item_name", item.itemName);
+    query.bindValue(":category", item.category);
+    query.bindValue(":quantity", item.quantity);
+    query.bindValue(":unit_price", item.unitPrice);
+    query.bindValue(":total_cost", item.totalCost);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to add equipment plan item:" << query.lastError().text();
+        return -1;
+    }
+    return query.lastInsertId().toInt();
+}
+
+std::optional<EquipmentPlanItem> Database::getEquipmentPlanItem(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("SELECT * FROM equipment_plan WHERE id = :id");
+    query.bindValue(":id", id);
+
+    if (!query.exec() || !query.next()) {
+        return std::nullopt;
+    }
+
+    EquipmentPlanItem item;
+    item.id = query.value("id").toInt();
+    item.itemId = query.value("item_id").toInt();
+    item.itemName = query.value("item_name").toString();
+    item.category = query.value("category").toString();
+    item.quantity = query.value("quantity").toInt();
+    item.unitPrice = query.value("unit_price").toDouble();
+    item.totalCost = query.value("total_cost").toDouble();
+    return item;
+}
+
+std::optional<EquipmentPlanItem> Database::getEquipmentPlanItemByItemId(int itemId)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("SELECT * FROM equipment_plan WHERE item_id = :item_id");
+    query.bindValue(":item_id", itemId);
+
+    if (!query.exec() || !query.next()) {
+        return std::nullopt;
+    }
+
+    EquipmentPlanItem item;
+    item.id = query.value("id").toInt();
+    item.itemId = query.value("item_id").toInt();
+    item.itemName = query.value("item_name").toString();
+    item.category = query.value("category").toString();
+    item.quantity = query.value("quantity").toInt();
+    item.unitPrice = query.value("unit_price").toDouble();
+    item.totalCost = query.value("total_cost").toDouble();
+    return item;
+}
+
+QVector<EquipmentPlanItem> Database::getEquipmentPlan()
+{
+    QVector<EquipmentPlanItem> plan;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec("SELECT * FROM equipment_plan ORDER BY item_name")) {
+        return plan;
+    }
+
+    while (query.next()) {
+        EquipmentPlanItem item;
+        item.id = query.value("id").toInt();
+        item.itemId = query.value("item_id").toInt();
+        item.itemName = query.value("item_name").toString();
+        item.category = query.value("category").toString();
+        item.quantity = query.value("quantity").toInt();
+        item.unitPrice = query.value("unit_price").toDouble();
+        item.totalCost = query.value("total_cost").toDouble();
+        plan.append(item);
+    }
+    return plan;
+}
+
+bool Database::updateEquipmentPlanItem(const EquipmentPlanItem &item)
+{
+    if (!item.id.has_value()) return false;
+
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        UPDATE equipment_plan
+        SET quantity = :quantity, total_cost = :total_cost
+        WHERE id = :id
+    )");
+    query.bindValue(":quantity", item.quantity);
+    query.bindValue(":total_cost", item.totalCost);
+    query.bindValue(":id", item.id.value());
+
+    return query.exec();
+}
+
+bool Database::deleteEquipmentPlanItem(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("DELETE FROM equipment_plan WHERE id = :id");
+    query.bindValue(":id", id);
+
+    return query.exec();
+}
+
+void Database::clearEquipmentPlan()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+    query.exec("DELETE FROM equipment_plan");
+}
+
+int Database::addFacilityPlanItem(const FacilityPlanItem &item)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        INSERT INTO facility_plan
+        (building_id, building_name, category, quantity, unit_price, unit_power_kw,
+         unit_generated_kw, total_cost, total_power_kw, total_generated_kw)
+        VALUES (:building_id, :building_name, :category, :quantity, :unit_price, :unit_power_kw,
+                :unit_generated_kw, :total_cost, :total_power_kw, :total_generated_kw)
+    )");
+    query.bindValue(":building_id", item.buildingId);
+    query.bindValue(":building_name", item.buildingName);
+    query.bindValue(":category", item.category);
+    query.bindValue(":quantity", item.quantity);
+    query.bindValue(":unit_price", item.unitPrice);
+    query.bindValue(":unit_power_kw", item.unitPowerKw);
+    query.bindValue(":unit_generated_kw", item.unitGeneratedKw);
+    query.bindValue(":total_cost", item.totalCost);
+    query.bindValue(":total_power_kw", item.totalPowerKw);
+    query.bindValue(":total_generated_kw", item.totalGeneratedKw);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to add facility plan item:" << query.lastError().text();
+        return -1;
+    }
+    return query.lastInsertId().toInt();
+}
+
+std::optional<FacilityPlanItem> Database::getFacilityPlanItem(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("SELECT * FROM facility_plan WHERE id = :id");
+    query.bindValue(":id", id);
+
+    if (!query.exec() || !query.next()) {
+        return std::nullopt;
+    }
+
+    FacilityPlanItem item;
+    item.id = query.value("id").toInt();
+    item.buildingId = query.value("building_id").toInt();
+    item.buildingName = query.value("building_name").toString();
+    item.category = query.value("category").toString();
+    item.quantity = query.value("quantity").toInt();
+    item.unitPrice = query.value("unit_price").toDouble();
+    item.unitPowerKw = query.value("unit_power_kw").toDouble();
+    item.unitGeneratedKw = query.value("unit_generated_kw").toDouble();
+    item.totalCost = query.value("total_cost").toDouble();
+    item.totalPowerKw = query.value("total_power_kw").toDouble();
+    item.totalGeneratedKw = query.value("total_generated_kw").toDouble();
+    return item;
+}
+
+std::optional<FacilityPlanItem> Database::getFacilityPlanItemByBuildingId(int buildingId)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("SELECT * FROM facility_plan WHERE building_id = :building_id");
+    query.bindValue(":building_id", buildingId);
+
+    if (!query.exec() || !query.next()) {
+        return std::nullopt;
+    }
+
+    FacilityPlanItem item;
+    item.id = query.value("id").toInt();
+    item.buildingId = query.value("building_id").toInt();
+    item.buildingName = query.value("building_name").toString();
+    item.category = query.value("category").toString();
+    item.quantity = query.value("quantity").toInt();
+    item.unitPrice = query.value("unit_price").toDouble();
+    item.unitPowerKw = query.value("unit_power_kw").toDouble();
+    item.unitGeneratedKw = query.value("unit_generated_kw").toDouble();
+    item.totalCost = query.value("total_cost").toDouble();
+    item.totalPowerKw = query.value("total_power_kw").toDouble();
+    item.totalGeneratedKw = query.value("total_generated_kw").toDouble();
+    return item;
+}
+
+QVector<FacilityPlanItem> Database::getFacilityPlan()
+{
+    QVector<FacilityPlanItem> plan;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    if (!query.exec("SELECT * FROM facility_plan ORDER BY category, building_name")) {
+        return plan;
+    }
+
+    while (query.next()) {
+        FacilityPlanItem item;
+        item.id = query.value("id").toInt();
+        item.buildingId = query.value("building_id").toInt();
+        item.buildingName = query.value("building_name").toString();
+        item.category = query.value("category").toString();
+        item.quantity = query.value("quantity").toInt();
+        item.unitPrice = query.value("unit_price").toDouble();
+        item.unitPowerKw = query.value("unit_power_kw").toDouble();
+        item.unitGeneratedKw = query.value("unit_generated_kw").toDouble();
+        item.totalCost = query.value("total_cost").toDouble();
+        item.totalPowerKw = query.value("total_power_kw").toDouble();
+        item.totalGeneratedKw = query.value("total_generated_kw").toDouble();
+        plan.append(item);
+    }
+    return plan;
+}
+
+bool Database::updateFacilityPlanItem(const FacilityPlanItem &item)
+{
+    if (!item.id.has_value()) return false;
+
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+        UPDATE facility_plan
+        SET quantity = :quantity, total_cost = :total_cost,
+            total_power_kw = :total_power_kw, total_generated_kw = :total_generated_kw
+        WHERE id = :id
+    )");
+    query.bindValue(":quantity", item.quantity);
+    query.bindValue(":total_cost", item.totalCost);
+    query.bindValue(":total_power_kw", item.totalPowerKw);
+    query.bindValue(":total_generated_kw", item.totalGeneratedKw);
+    query.bindValue(":id", item.id.value());
+
+    return query.exec();
+}
+
+bool Database::deleteFacilityPlanItem(int id)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+
+    query.prepare("DELETE FROM facility_plan WHERE id = :id");
+    query.bindValue(":id", id);
+
+    return query.exec();
+}
+
+void Database::clearFacilityPlan()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    QSqlQuery query(db);
+    query.exec("DELETE FROM facility_plan");
+}
+
+
+// =============================================================================
 // Helper Functions
 // =============================================================================
 
@@ -3580,21 +4552,24 @@ PricingGroup stringToPricingGroup(const QString &str)
 QString transactionTypeToString(TransactionType type)
 {
     switch (type) {
-        case TransactionType::Sale:
-            return "Sale";
-        case TransactionType::Purchase:
-            return "Purchase";
-        case TransactionType::Transfer:
-            return "Transfer";
-        case TransactionType::Fuel:
-            return "Fuel";
-        default:
-            return "Sale";
+    case TransactionType::Opening:
+        return "Opening";
+    case TransactionType::Sale:
+        return "Sale";
+    case TransactionType::Purchase:
+        return "Purchase";
+    case TransactionType::Transfer:
+        return "Transfer";
+    case TransactionType::Fuel:
+        return "Fuel";
+    default:
+        return "Sale";
     }
 }
 
 TransactionType stringToTransactionType(const QString &str)
 {
+    if (str == "Opening") return TransactionType::Opening;
     if (str == "Sale") return TransactionType::Sale;
     if (str == "Purchase") return TransactionType::Purchase;
     if (str == "Transfer") return TransactionType::Transfer;

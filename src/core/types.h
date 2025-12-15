@@ -16,6 +16,7 @@ namespace Frontier {
 // === Enums ===
 
 enum class TransactionType {
+    Opening,    // NEW - Opening balance entry
     Sale,
     Purchase,
     Transfer,
@@ -363,6 +364,75 @@ struct CycleRecord {
     QString totalFormatted() const {
         return formatTime(totalSeconds);
     }
+};
+
+// =============================================================================
+// Account Balance tracking
+// =============================================================================
+
+struct AccountBalance {
+    double companyBalance = 0.0;
+    double personalBalance = 0.0;
+
+    double total() const { return companyBalance + personalBalance; }
+};
+
+struct FinanceSummary {
+    double totalIncome = 0.0;
+    double totalExpenses = 0.0;
+    double netProfit = 0.0;
+
+    // By category
+    QMap<QString, double> incomeByCategory;
+    QMap<QString, double> expensesByCategory;
+};
+
+struct Budget {
+    std::optional<int> id;
+    QString category;
+    double monthlyAmount = 0.0;
+    int year = 0;
+    int month = 0;  // 1-12
+    QString notes;
+};
+
+struct FactoryBuilding {
+    std::optional<int> id;
+    QString name;
+    QString category;       // Factory - Conveyors, Factory - Pipeline, Factory - Power, Factory - Production
+    QString dimensions;     // e.g., "4m x 4m"
+    QString speed;          // e.g., "30 M/s"
+    double powerKw = 0;     // Power consumed (kW)
+    double generatedKw = 0; // Power generated (kW) - for generators
+    double capacity = 0;    // Storage capacity
+    int connections = 0;    // Number of connections
+    double price = 0;
+    QString notes;
+};
+
+// Capital Planner
+struct EquipmentPlanItem {
+    std::optional<int> id;
+    int itemId = 0;
+    QString itemName;
+    QString category;
+    int quantity = 1;
+    double unitPrice = 0;
+    double totalCost = 0;
+};
+
+struct FacilityPlanItem {
+    std::optional<int> id;
+    int buildingId = 0;
+    QString buildingName;
+    QString category;
+    int quantity = 1;
+    double unitPrice = 0;
+    double unitPowerKw = 0;
+    double unitGeneratedKw = 0;
+    double totalCost = 0;
+    double totalPowerKw = 0;
+    double totalGeneratedKw = 0;
 };
 
 } // namespace Frontier

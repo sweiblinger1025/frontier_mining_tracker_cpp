@@ -8,6 +8,7 @@
 #include "vehiclespecstab.h"
 #include "recipestab.h"
 #include "locationstab.h"
+#include "factorybuildingstab.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -46,8 +47,9 @@ void DataHubWidget::setupUi()
     m_vehicleSpecsTab = new VehicleSpecsTab(m_database, this);
     m_subTabs->addTab(m_vehicleSpecsTab, "Vehicle Specs");
     
-    // Placeholder for future
-    m_subTabs->addTab(new QLabel("Factory Buildings - Coming Soon"), "Factory - Buildings");
+    // Factory - Buildings
+    m_factoryBuildingsTab = new FactoryBuildingsTab(m_database, this);
+    m_subTabs->addTab(m_factoryBuildingsTab, tr("Factory - Buildings"));
     
     // Recipes tab (now functional!)
     m_recipesTab = new RecipesTab(m_database, this);
