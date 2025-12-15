@@ -7,7 +7,7 @@
 #include "core/locationimporter.h"
 
 // Project headers
-#include "dashboardwidget.h"
+#include "ui/dashboardwidget.h"
 #include "financewidget.h"
 #include "operationswidget.h"
 #include "datahubwidget.h"
@@ -41,7 +41,7 @@ MainWindow::MainWindow(Frontier::Database *database, QWidget *parent)
     setCentralWidget(m_tabWidget);
 
     // Create tab widgets - pass database to DataHub
-    DashboardWidget *dashboardWidget = new DashboardWidget(this);
+    DashboardWidget *dashboardWidget = new DashboardWidget(m_database, this);
     FinanceWidget *financeWidget = new FinanceWidget(m_database, this);
     OperationsWidget *operationsWidget = new OperationsWidget(m_operationsManager, this);
     m_dataHubWidget = new DataHubWidget(m_database, this);

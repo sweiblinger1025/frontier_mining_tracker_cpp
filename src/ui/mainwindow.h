@@ -13,6 +13,7 @@ namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
 class DataHubWidget;
+class DashboardWidget;
 
 class MainWindow : public QMainWindow
 {
@@ -30,6 +31,9 @@ private slots:
 
 private:
     Ui::MainWindow *ui;
+
+    // Dashboard
+    DashboardWidget *m_dashboardWidget;
 
     // Database reference
     Frontier::Database *m_database;
